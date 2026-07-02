@@ -565,14 +565,14 @@
           <div class="card-sub">Current balance</div>
         </div>
         <div class="card">
-          <div class="card-label">Next Deposit</div>
-          <div class="card-value" id="dash-next-deposit">$4,097.82</div>
-          <div class="card-sub" id="dash-next-date">Biweekly</div>
-        </div>
-        <div class="card">
           <div class="card-label">This Month Spent</div>
           <div class="card-value warn" id="dash-spent">$0.00</div>
           <div class="card-sub">Expenses logged</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Total Balance</div>
+          <div class="card-value green" id="dash-total">$0.00</div>
+          <div class="card-sub">PNC + Chime combined</div>
         </div>
       </div>
 
@@ -588,6 +588,28 @@
         <div id="recent-expenses-body">
           <div class="empty-state">No expenses logged yet.</div>
         </div>
+      </div>
+
+      <div class="section-title">Scheduled payments calendar</div>
+      <div class="card" style="padding:0; overflow:hidden; margin-bottom:28px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border);">
+          <button class="btn btn-secondary btn-sm" onclick="calPrev()">&#8592;</button>
+          <div id="cal-month-label" style="font-weight:600; font-size:14px;"></div>
+          <button class="btn btn-secondary btn-sm" onclick="calNext()">&#8594;</button>
+        </div>
+        <div style="padding:16px 20px;">
+          <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:8px;">
+            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:4px;">Su</div>
+            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:4px;">Mo</div>
+            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:4px;">Tu</div>
+            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:4px;">We</div>
+            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:4px;">Th</div>
+            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:4px;">Fr</div>
+            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:4px;">Sa</div>
+          </div>
+          <div id="cal-grid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;"></div>
+        </div>
+        <div id="cal-detail" style="border-top:1px solid var(--border); padding:14px 20px; display:none; font-size:13px;"></div>
       </div>
     </div>
 
@@ -801,7 +823,7 @@
   // ============================================================
   // CONFIGURATION — paste your Google OAuth Client ID here
   // ============================================================
-  const CLIENT_ID = '803010094338-5deiv8s131d8m5qjr12pqt6kcod01msp.apps.googleusercontent.com';
+  const CLIENT_ID = 'YOUR_GOOGLE_OAUTH_CLIENT_ID';
   const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
   const SHEET_TITLE = 'Budget App Data';
 
@@ -1098,36 +1120,43 @@
     renderBalances();
   }
 
+  let calYear, calMonth;
+
   function renderDashboard() {
+    const now = new Date();
+    if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
+
     // Balances
     const pnc = userData.balances.find(b => b.account.toLowerCase().includes('pnc'));
     const chime = userData.balances.find(b => b.account.toLowerCase().includes('chime'));
     document.getElementById('dash-pnc').textContent = fmt(pnc ? pnc.balance : 0);
     document.getElementById('dash-chime').textContent = fmt(chime ? chime.balance : 0);
 
+    // Total balance
+    const total = (pnc ? pnc.balance : 0) + (chime ? chime.balance : 0);
+    document.getElementById('dash-total').textContent = fmt(total);
+
     // This month spent
-    const now = new Date();
     const monthSpent = userData.expenses
-      .filter(e => { const d = new Date(e.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); })
+      .filter(e => { const d = new Date(e.date + 'T00:00:00'); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); })
       .reduce((s, e) => s + e.amount, 0);
     document.getElementById('dash-spent').textContent = fmt(monthSpent);
 
     // Upcoming payments (next 14 days)
     const today = new Date(); today.setHours(0,0,0,0);
     const in14 = new Date(today); in14.setDate(in14.getDate() + 14);
-
     const upcoming = [];
 
     userData.scheduled.filter(p => p.status !== 'Paid').forEach(p => {
-      const d = new Date(p.date);
-      if (d >= today && d <= in14) upcoming.push({ name: p.name, date: p.date, amount: p.amount, type: 'payment' });
+      const d = new Date(p.date + 'T00:00:00');
+      if (d >= today && d <= in14) upcoming.push({ name: p.name, date: p.date, amount: p.amount });
     });
 
     userData.bills.forEach(b => {
       const day = parseInt(b.day);
       [0, 1].forEach(mo => {
         const d = new Date(now.getFullYear(), now.getMonth() + mo, day);
-        if (d >= today && d <= in14) upcoming.push({ name: b.name, date: d.toISOString().slice(0,10), amount: b.amount, type: 'bill' });
+        if (d >= today && d <= in14) upcoming.push({ name: b.name, date: d.toISOString().slice(0,10), amount: b.amount });
       });
     });
 
@@ -1164,7 +1193,86 @@
         </div>
       `).join('');
     }
+
+    // Calendar
+    renderCalendar();
   }
+
+  function buildCalendarEvents() {
+    const events = {};
+    const now = new Date();
+
+    userData.scheduled.forEach(p => {
+      if (!p.date) return;
+      const key = p.date;
+      if (!events[key]) events[key] = [];
+      events[key].push({ name: p.name, amount: p.amount, status: p.status || 'Upcoming', type: 'scheduled' });
+    });
+
+    userData.bills.forEach(b => {
+      for (let mo = -1; mo <= 2; mo++) {
+        const d = new Date(now.getFullYear(), now.getMonth() + mo, parseInt(b.day));
+        const key = d.toISOString().slice(0,10);
+        if (!events[key]) events[key] = [];
+        events[key].push({ name: b.name, amount: b.amount, status: 'Bill', type: 'bill' });
+      }
+    });
+
+    return events;
+  }
+
+  function renderCalendar() {
+    const events = buildCalendarEvents();
+    const firstDay = new Date(calYear, calMonth, 1);
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const startDow = firstDay.getDay();
+    const today = new Date(); today.setHours(0,0,0,0);
+
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    document.getElementById('cal-month-label').textContent = monthNames[calMonth] + ' ' + calYear;
+
+    let cells = '';
+    for (let i = 0; i < startDow; i++) cells += '<div></div>';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+      const hasEvents = events[dateStr] && events[dateStr].length > 0;
+      const isToday = new Date(calYear, calMonth, d).getTime() === today.getTime();
+      const hasPaid = hasEvents && events[dateStr].every(e => e.status === 'Paid');
+      const hasUnpaid = hasEvents && events[dateStr].some(e => e.status !== 'Paid');
+
+      const dotColor = hasPaid ? 'var(--accent2)' : hasUnpaid ? 'var(--danger)' : 'transparent';
+      const todayStyle = isToday ? 'background:var(--accent);color:#fff;border-radius:50%;' : '';
+      const cursor = hasEvents ? 'cursor:pointer;' : '';
+
+      cells += `<div onclick="calDayClick('${dateStr}')" style="text-align:center;padding:6px 2px;font-size:12px;position:relative;${todayStyle}${cursor}">
+        ${d}
+        ${hasEvents ? `<div style="width:5px;height:5px;border-radius:50%;background:${dotColor};margin:2px auto 0;"></div>` : '<div style="height:7px;"></div>'}
+      </div>`;
+    }
+
+    document.getElementById('cal-grid').innerHTML = cells;
+  }
+
+  function calDayClick(dateStr) {
+    const events = buildCalendarEvents();
+    const dayEvents = events[dateStr];
+    const detail = document.getElementById('cal-detail');
+    if (!dayEvents || !dayEvents.length) { detail.style.display = 'none'; return; }
+    detail.style.display = 'block';
+    detail.innerHTML = `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">${fmtDate(dateStr)}</div>` +
+      dayEvents.map(e => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+          <div>
+            <span style="font-weight:500;">${e.name}</span>
+            <span style="font-size:11px;color:var(--muted);margin-left:8px;">${e.status}</span>
+          </div>
+          <span style="font-family:var(--mono);color:var(--danger);">${fmt(e.amount)}</span>
+        </div>
+      `).join('');
+  }
+
+  function calPrev() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); }
+  function calNext() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
 
   function renderExpenses() {
     const tbody = document.getElementById('expenses-tbody');
