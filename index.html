@@ -22,6 +22,38 @@
       --sans: 'Inter', sans-serif;
     }
 
+    body.light {
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      --surface2: #eef1f8;
+      --border: #d6dce8;
+      --accent: #3b7de8;
+      --accent2: #18a87a;
+      --warn: #d4820a;
+      --danger: #d63c3c;
+      --text: #1a2035;
+      --muted: #6b7594;
+    }
+
+    .theme-toggle {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.15s, background 0.15s;
+      margin-right: 12px;
+      white-space: nowrap;
+    }
+
+    .theme-toggle:hover { color: var(--text); }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
@@ -111,7 +143,7 @@
 
     .header-brand {
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 22px;
       letter-spacing: 0.2em;
       color: var(--accent);
       text-transform: uppercase;
@@ -532,13 +564,16 @@
 <div id="app">
   <header>
     <div class="header-brand">Budget</div>
-    <div class="header-user" onclick="toggleUserMenu()">
+    <div style="display:flex;align-items:center;margin-left:auto;">
+      <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">&#9790; Dark</button>
+      <div class="header-user" onclick="toggleUserMenu()">
       <div class="avatar" id="user-avatar">AT</div>
       <div class="user-menu" id="user-menu">
         <div class="user-menu-item" id="user-name-display">Tony Tellez</div>
         <div class="user-menu-item" onclick="openSheetUrl()">Open my Sheet</div>
         <div class="user-menu-item danger" onclick="signOut()">Sign out</div>
       </div>
+    </div>
     </div>
   </header>
   <nav>
@@ -1426,8 +1461,25 @@
     el.style.display = el.style.display === 'none' ? 'block' : 'none';
   }
 
+  // ---- Theme ----
+  function toggleTheme() {
+    const isLight = document.body.classList.toggle('light');
+    document.getElementById('theme-btn').textContent = isLight ? '☀️ Light' : '☺ Dark';
+    try { localStorage.setItem('budget-theme', isLight ? 'light' : 'dark'); } catch(e) {}
+  }
+
+  function applyStoredTheme() {
+    try {
+      const stored = localStorage.getItem('budget-theme');
+      if (stored === 'light') {
+        document.body.classList.add('light');
+        document.getElementById('theme-btn').textContent = '☀️ Light';
+      }
+    } catch(e) {}
+  }
+
   // ---- Init ----
-  window.onload = () => initGoogle();
+  window.onload = () => { applyStoredTheme(); initGoogle(); };
 </script>
 
 <!-- Google Identity Services -->
