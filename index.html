@@ -1463,9 +1463,28 @@
 
   // ---- Theme ----
   function toggleTheme() {
-    const isLight = document.body.classList.toggle('light');
-    document.getElementById('theme-btn').textContent = isLight ? '☀️ Light' : '☺ Dark';
-    try { localStorage.setItem('budget-theme', isLight ? 'light' : 'dark'); } catch(e) {}
+    const isCurrentlyLight = document.body.classList.contains('light');
+    if (!isCurrentlyLight) {
+      // Going to light mode - show warning
+      const overlay = document.getElementById('flashbang-overlay');
+      overlay.style.display = 'flex';
+    } else {
+      // Going back to dark, no warning needed
+      document.body.classList.remove('light');
+      document.getElementById('theme-btn').textContent = '🌙 Dark';
+      try { localStorage.setItem('budget-theme', 'dark'); } catch(e) {}
+    }
+  }
+
+  function confirmFlashbang() {
+    closeFlashbang();
+    document.body.classList.add('light');
+    document.getElementById('theme-btn').textContent = '☀️ Light';
+    try { localStorage.setItem('budget-theme', 'light'); } catch(e) {}
+  }
+
+  function closeFlashbang() {
+    document.getElementById('flashbang-overlay').style.display = 'none';
   }
 
   function applyStoredTheme() {
@@ -1484,5 +1503,18 @@
 
 <!-- Google Identity Services -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<!-- Flashbang Warning Lightbox -->
+<div id="flashbang-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center;">
+  <div id="flashbang-box" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 36px;max-width:380px;width:90%;text-align:center;position:relative;">
+    <div style="font-size:64px;margin-bottom:12px;">🕶️</div>
+    <h2 style="font-size:20px;font-weight:700;margin-bottom:10px;color:var(--text);">Prepare to be flashbanged</h2>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:24px;">You are about to switch to Light Mode. Anthropic is not responsible for any temporary blindness, squinting, or existential regret that follows. Sunglasses recommended.</p>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button onclick="confirmFlashbang()" style="background:#f7a84f;color:#fff;border:none;border-radius:8px;padding:10px 22px;font-size:13px;font-weight:600;cursor:pointer;">I accept my fate 🫡</button>
+      <button onclick="closeFlashbang()" style="background:var(--surface2);color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:10px 22px;font-size:13px;font-weight:600;cursor:pointer;">Never mind 🐔</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
