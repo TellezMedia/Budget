@@ -582,6 +582,7 @@
     <div class="nav-tab" onclick="showScreen('bills', this)">Bills</div>
     <div class="nav-tab" onclick="showScreen('scheduled', this)">Scheduled</div>
     <div class="nav-tab" onclick="showScreen('balances', this)">Accounts</div>
+    <div class="nav-tab" onclick="showScreen('budget', this)">Budget</div>
   </nav>
   <main>
 
@@ -672,7 +673,7 @@
           </div>
           <div class="form-group">
             <label>Category</label>
-            <select id="exp-category">
+            <select id="exp-category" onchange="toggleCustomCat()">
               <option>Food</option>
               <option>Gas</option>
               <option>Groceries</option>
@@ -680,8 +681,16 @@
               <option>Shopping</option>
               <option>Health</option>
               <option>Utilities</option>
+              <option>Subscriptions</option>
+              <option>Dining Out</option>
+              <option>Personal Care</option>
+              <option>Auto</option>
               <option>Other</option>
             </select>
+          </div>
+          <div class="form-group" id="custom-cat-group" style="display:none;">
+            <label>Custom Category</label>
+            <input type="text" id="exp-custom-category" placeholder="Enter category..." />
           </div>
           <div class="form-group">
             <label>Account</label>
@@ -762,6 +771,7 @@
               <th>Due Day</th>
               <th>Account</th>
               <th>Frequency</th>
+              <th>This Month</th>
               <th></th>
             </tr>
           </thead>
@@ -854,6 +864,72 @@
       </div>
     </div>
 
+    <!-- BUDGET V2.0 -->
+    <div id="screen-budget" class="screen">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <div class="section-title" style="margin-bottom:2px;">Monthly Budget</div>
+          <div style="font-size:12px;color:var(--muted);" id="budget-month-label"></div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="openBudgetSheet()">Open Budget Sheet</button>
+      </div>
+
+      <div class="form-card">
+        <div class="form-title">Set a monthly target</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Category</label>
+            <select id="budget-cat">
+              <option>Food</option>
+              <option>Gas</option>
+              <option>Groceries</option>
+              <option>Entertainment</option>
+              <option>Shopping</option>
+              <option>Health</option>
+              <option>Utilities</option>
+              <option>Subscriptions</option>
+              <option>Dining Out</option>
+              <option>Personal Care</option>
+              <option>Auto</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Monthly limit</label>
+            <input type="number" id="budget-limit" placeholder="0.00" step="0.01" />
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="saveBudgetTarget()">Save target</button>
+      </div>
+
+      <!-- Pie chart canvas -->
+      <div class="card" style="margin-bottom:24px;padding:24px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:16px;">Spending Breakdown - This Month</div>
+        <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:center;justify-content:center;">
+          <canvas id="budget-pie" width="220" height="220"></canvas>
+          <div id="budget-legend" style="display:flex;flex-direction:column;gap:8px;min-width:160px;"></div>
+        </div>
+      </div>
+
+      <!-- Actual vs Target table -->
+      <div class="data-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th>Target</th>
+              <th>Spent</th>
+              <th>Remaining</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="budget-tbody">
+            <tr><td colspan="5"><div class="empty-state">Set a budget target to get started.</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -866,6 +942,7 @@
   const CLIENT_ID = '803010094338-5deiv8s131d8m5qjr12pqt6kcod01msp.apps.googleusercontent.com';
   const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
   const SHEET_TITLE = 'Budget App Data';
+  const BUDGET_SHEET_TITLE = 'Budget Plan Data';
 
   // ============================================================
   // Sheet tab names
@@ -877,10 +954,20 @@
     balances:  'Balances'
   };
 
+  const BUDGET_TABS = {
+    targets: 'Targets'
+  };
+
+  const BUDGET_CATEGORIES = ['Food','Gas','Groceries','Entertainment','Shopping','Health','Utilities','Subscriptions','Dining Out','Personal Care','Auto','Other'];
+
+  const PIE_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c','#4ade80','#e879f9'];
+
   let tokenClient;
   let accessToken = null;
   let sheetId = null;
+  let budgetSheetId = null;
   let userData = { expenses: [], bills: [], scheduled: [], balances: [] };
+  let budgetData = { targets: [] };
 
   // ---- Auth ----
 
@@ -929,9 +1016,12 @@
     document.getElementById('app').style.flexDirection = 'column';
 
     await ensureSheet();
+    await ensureBudgetSheet();
     await loadAllData();
+    await loadBudgetData();
     renderDashboard();
     setDefaultDates();
+    updateBudgetMonthLabel();
   }
 
   async function fetchProfile() {
@@ -987,6 +1077,215 @@
       });
       await addHeaders();
     }
+  }
+
+  async function ensureBudgetSheet() {
+    const search = await gFetch(
+      `https://www.googleapis.com/drive/v3/files?q=name='${BUDGET_SHEET_TITLE}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false&fields=files(id,name)`
+    );
+    const data = await search.json();
+    if (data.files && data.files.length > 0) {
+      budgetSheetId = data.files[0].id;
+      return;
+    }
+    const create = await gFetch('https://sheets.googleapis.com/v4/spreadsheets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        properties: { title: BUDGET_SHEET_TITLE },
+        sheets: [{ properties: { title: BUDGET_TABS.targets } }]
+      })
+    });
+    const sheet = await create.json();
+    budgetSheetId = sheet.spreadsheetId;
+    await addBudgetHeaders();
+  }
+
+  async function addBudgetHeaders() {
+    await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${budgetSheetId}/values/${BUDGET_TABS.targets}!A1?valueInputOption=RAW`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: [['Category','MonthlyLimit']] })
+    });
+  }
+
+  function openBudgetSheet() {
+    if (budgetSheetId) window.open(`https://docs.google.com/spreadsheets/d/${budgetSheetId}`, '_blank');
+  }
+
+  async function loadBudgetData() {
+    const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${budgetSheetId}/values/${BUDGET_TABS.targets}`);
+    const data = await r.json();
+    const rows = (data.values || []).slice(1);
+    budgetData.targets = rows.map(r => ({ category: r[0], limit: parseFloat(r[1]) || 0 }));
+  }
+
+  async function saveBudgetTarget() {
+    const cat = document.getElementById('budget-cat').value;
+    const limit = parseFloat(document.getElementById('budget-limit').value);
+    if (!cat || isNaN(limit) || limit <= 0) { showToast('Enter a category and a limit above zero.', 'error'); return; }
+
+    const existing = budgetData.targets.findIndex(t => t.category === cat);
+    if (existing >= 0) {
+      const rowNum = existing + 2;
+      await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${budgetSheetId}/values/${BUDGET_TABS.targets}!A${rowNum}:B${rowNum}?valueInputOption=RAW`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [[cat, limit]] })
+      });
+      budgetData.targets[existing].limit = limit;
+    } else {
+      await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${budgetSheetId}/values/${BUDGET_TABS.targets}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [[cat, limit]] })
+      });
+      budgetData.targets.push({ category: cat, limit });
+    }
+    document.getElementById('budget-limit').value = '';
+    renderBudget();
+    showToast('Budget target saved for ' + cat + '.', 'success');
+  }
+
+  function updateBudgetMonthLabel() {
+    const now = new Date();
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const el = document.getElementById('budget-month-label');
+    if (el) el.textContent = months[now.getMonth()] + ' ' + now.getFullYear();
+  }
+
+  function getMonthlySpendingByCategory() {
+    const now = new Date();
+    const spending = {};
+    userData.expenses.forEach(e => {
+      const d = new Date(e.date + 'T00:00:00');
+      if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+        const cat = e.category || 'Other';
+        spending[cat] = (spending[cat] || 0) + e.amount;
+      }
+    });
+    return spending;
+  }
+
+  function renderBudget() {
+    updateBudgetMonthLabel();
+    const spending = getMonthlySpendingByCategory();
+    const tbody = document.getElementById('budget-tbody');
+
+    // Gather all categories with either a target or spending
+    const allCats = new Set([
+      ...budgetData.targets.map(t => t.category),
+      ...Object.keys(spending)
+    ]);
+
+    if (!allCats.size) {
+      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">Set a budget target to get started.</div></td></tr>';
+      drawPieChart([], []);
+      return;
+    }
+
+    const rows = [];
+    allCats.forEach(cat => {
+      const target = budgetData.targets.find(t => t.category === cat);
+      const spent = spending[cat] || 0;
+      const limit = target ? target.limit : 0;
+      const remaining = limit > 0 ? limit - spent : null;
+      const pct = limit > 0 ? (spent / limit) * 100 : null;
+      let badge = '';
+      if (pct === null) {
+        badge = '<span class="badge upcoming">No target</span>';
+      } else if (pct >= 100) {
+        badge = '<span class="badge overdue">Over budget</span>';
+      } else if (pct >= 80) {
+        badge = '<span class="badge upcoming">Near limit</span>';
+      } else {
+        badge = '<span class="badge paid">On track</span>';
+      }
+      rows.push({ cat, limit, spent, remaining, badge });
+    });
+
+    rows.sort((a, b) => b.spent - a.spent);
+
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td>${r.cat}</td>
+        <td class="mono">${r.limit > 0 ? fmt(r.limit) : '--'}</td>
+        <td class="mono" style="color:var(--danger);">${fmt(r.spent)}</td>
+        <td class="mono" style="color:${r.remaining !== null ? (r.remaining < 0 ? 'var(--danger)' : 'var(--accent2)') : 'var(--muted)'};">
+          ${r.remaining !== null ? fmt(r.remaining) : '--'}
+        </td>
+        <td>${r.badge}</td>
+      </tr>
+    `).join('');
+
+    // Draw pie chart
+    const labels = rows.map(r => r.cat);
+    const values = rows.map(r => r.spent);
+    drawPieChart(labels, values);
+  }
+
+  function drawPieChart(labels, values) {
+    const canvas = document.getElementById('budget-pie');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const total = values.reduce((s, v) => s + v, 0);
+    if (!total) {
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--border') || '#2a2f42';
+      ctx.beginPath();
+      ctx.arc(W/2, H/2, W/2 - 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = '12px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('No spending yet', W/2, H/2);
+      document.getElementById('budget-legend').innerHTML = '';
+      return;
+    }
+
+    let startAngle = -Math.PI / 2;
+    const legend = [];
+    values.forEach((val, i) => {
+      const slice = (val / total) * Math.PI * 2;
+      const color = PIE_COLORS[i % PIE_COLORS.length];
+      ctx.beginPath();
+      ctx.moveTo(W/2, H/2);
+      ctx.arc(W/2, H/2, W/2 - 10, startAngle, startAngle + slice);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      legend.push({ label: labels[i], color, pct: Math.round((val / total) * 100), amount: val });
+      startAngle += slice;
+    });
+
+    // Center hole for donut
+    ctx.beginPath();
+    ctx.arc(W/2, H/2, W/4, 0, Math.PI * 2);
+    const bg = document.body.classList.contains('light') ? '#f4f6fb' : '#181c27';
+    ctx.fillStyle = bg;
+    ctx.fill();
+
+    // Center text
+    ctx.fillStyle = document.body.classList.contains('light') ? '#1a2035' : '#e4e8f0';
+    ctx.font = 'bold 14px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(fmt(total), W/2, H/2 + 5);
+    ctx.font = '10px Inter, sans-serif';
+    ctx.fillStyle = '#7a84a0';
+    ctx.fillText('spent', W/2, H/2 + 18);
+
+    document.getElementById('budget-legend').innerHTML = legend.map(l => `
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+        <span style="width:10px;height:10px;border-radius:2px;background:${l.color};flex-shrink:0;display:inline-block;"></span>
+        <span style="color:var(--text);">${l.label}</span>
+        <span style="color:var(--muted);margin-left:auto;">${l.pct}%</span>
+      </div>
+    `).join('');
   }
 
   async function addHeaders() {
@@ -1079,13 +1378,45 @@
 
   // ---- Add records ----
 
+  async function deductFromBalance(accountName, amount) {
+    if (!accountName || !amount) return;
+    const idx = userData.balances.findIndex(b => b.account.toLowerCase() === accountName.toLowerCase());
+    if (idx < 0) return; // no matching account on file
+    const newBal = userData.balances[idx].balance - amount;
+    const today = new Date().toLocaleDateString();
+    await updateCell(TABS.balances, idx, 1, newBal);
+    await updateCell(TABS.balances, idx, 2, today);
+    userData.balances[idx].balance = newBal;
+    userData.balances[idx].updated = today;
+  }
+
+  async function addToBalance(accountName, amount) {
+    if (!accountName || !amount) return;
+    const idx = userData.balances.findIndex(b => b.account.toLowerCase() === accountName.toLowerCase());
+    if (idx < 0) return;
+    const newBal = userData.balances[idx].balance + amount;
+    const today = new Date().toLocaleDateString();
+    await updateCell(TABS.balances, idx, 1, newBal);
+    await updateCell(TABS.balances, idx, 2, today);
+    userData.balances[idx].balance = newBal;
+    userData.balances[idx].updated = today;
+  }
+
   async function addExpense() {
-    const d = v('exp-date'), desc = v('exp-desc'), amt = parseFloat(v('exp-amount')), cat = v('exp-category'), acc = v('exp-account');
+    const d = v('exp-date'), desc = v('exp-desc'), amt = parseFloat(v('exp-amount')), acc = v('exp-account');
+    let cat = v('exp-category');
+    if (cat === 'Other') {
+      const custom = v('exp-custom-category').trim();
+      if (custom) cat = custom;
+    }
     if (!d || !desc || !amt) { showToast('Fill in date, description, and amount.', 'error'); return; }
     await appendRow(TABS.expenses, [d, desc, cat, acc, amt]);
     userData.expenses.unshift({ date: d, desc, category: cat, account: acc, amount: amt });
+    await deductFromBalance(acc, amt);
     clear('exp-desc'); clear('exp-amount');
-    renderAll(); showToast('Expense saved.', 'success');
+    const customInput = document.getElementById('exp-custom-category');
+    if (customInput) customInput.value = '';
+    renderAll(); showToast('Expense saved and deducted from ' + acc + '.', 'success');
   }
 
   async function addBill() {
@@ -1145,9 +1476,19 @@
   }
 
   async function markPaid(i) {
-    await updateCell(TABS.scheduled, i, 4, 'Paid');
-    userData.scheduled[i].status = 'Paid';
-    renderAll(); showToast('Marked as paid.', 'success');
+    const payment = userData.scheduled[i];
+    const wasPaid = payment.status === 'Paid';
+    const newStatus = wasPaid ? 'Upcoming' : 'Paid';
+    await updateCell(TABS.scheduled, i, 4, newStatus);
+    userData.scheduled[i].status = newStatus;
+    if (!wasPaid) {
+      await deductFromBalance(payment.account, payment.amount);
+      showToast('Marked as paid and deducted from ' + payment.account + '.', 'success');
+    } else {
+      await addToBalance(payment.account, payment.amount);
+      showToast('Marked as unpaid and added back to ' + payment.account + '.', 'success');
+    }
+    renderAll();
   }
 
   // ---- Render ----
@@ -1158,6 +1499,7 @@
     renderBills();
     renderScheduled();
     renderBalances();
+    renderBudget();
   }
 
   let calYear, calMonth;
@@ -1196,7 +1538,10 @@
       const day = parseInt(b.day);
       [0, 1].forEach(mo => {
         const d = new Date(now.getFullYear(), now.getMonth() + mo, day);
-        if (d >= today && d <= in14) upcoming.push({ name: b.name, date: d.toISOString().slice(0,10), amount: b.amount });
+        if (d >= today && d <= in14) {
+          const paid = isBillPaidThisMonth(b.name);
+          upcoming.push({ name: b.name, date: d.toISOString().slice(0,10), amount: b.amount, paid });
+        }
       });
     });
 
@@ -1209,10 +1554,10 @@
       upEl.innerHTML = upcoming.map(p => `
         <div class="list-row">
           <div class="list-row-left">
-            <div class="list-row-name">${p.name}</div>
+            <div class="list-row-name">${p.name} ${p.paid ? '<span class="badge paid" style="margin-left:6px;">Paid</span>' : ''}</div>
             <div class="list-row-date">${fmtDate(p.date)}</div>
           </div>
-          <div class="list-row-amount red">${fmt(p.amount)}</div>
+          <div class="list-row-amount ${p.paid ? 'green' : 'red'}">${fmt(p.amount)}</div>
         </div>
       `).join('');
     }
@@ -1346,22 +1691,65 @@
     `).join('');
   }
 
+  function billPaidKey(name) {
+    const now = new Date();
+    return 'billpaid:' + now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2,'0') + ':' + name.toLowerCase().replace(/\s+/g,'_');
+  }
+
+  function isBillPaidThisMonth(name) {
+    try { return localStorage.getItem(billPaidKey(name)) === 'paid'; } catch(e) { return false; }
+  }
+
+  async function markBillPaid(i) {
+    const bill = userData.bills[i];
+    const key = billPaidKey(bill.name);
+    const wasPaid = isBillPaidThisMonth(bill.name);
+    try {
+      if (wasPaid) {
+        localStorage.removeItem(key);
+      } else {
+        localStorage.setItem(key, 'paid');
+      }
+    } catch(e) {}
+    if (!wasPaid) {
+      await deductFromBalance(bill.account, bill.amount);
+      showToast(bill.name + ' marked as paid and deducted from ' + bill.account + '.', 'success');
+    } else {
+      await addToBalance(bill.account, bill.amount);
+      showToast(bill.name + ' marked as unpaid and added back to ' + bill.account + '.', 'success');
+    }
+    renderBills();
+    renderDashboard();
+  }
+
   function renderBills() {
     const tbody = document.getElementById('bills-tbody');
     if (!userData.bills.length) {
-      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No bills added yet.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">No bills added yet.</div></td></tr>';
       return;
     }
-    tbody.innerHTML = userData.bills.map((b, i) => `
-      <tr>
-        <td>${b.name}</td>
-        <td class="mono">${fmt(b.amount)}</td>
-        <td>Day ${b.day}</td>
-        <td>${b.account}</td>
-        <td>${b.freq}</td>
-        <td><button class="btn btn-danger btn-sm" onclick="deleteBill(${i})">Remove</button></td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = userData.bills.map((b, i) => {
+      const paid = isBillPaidThisMonth(b.name);
+      const badge = paid
+        ? '<span class="badge paid">Paid</span>'
+        : '<span class="badge upcoming">Unpaid</span>';
+      const btnLabel = paid ? 'Mark unpaid' : 'Mark paid';
+      const btnClass = paid ? 'btn-secondary' : 'btn-primary';
+      return `
+        <tr>
+          <td>${b.name}</td>
+          <td class="mono">${fmt(b.amount)}</td>
+          <td>Day ${b.day}</td>
+          <td>${b.account}</td>
+          <td>${b.freq}</td>
+          <td>${badge}</td>
+          <td style="display:flex;gap:6px;">
+            <button class="btn ${btnClass} btn-sm" onclick="markBillPaid(${i})">${btnLabel}</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteBill(${i})">Remove</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
   }
 
   function renderScheduled() {
@@ -1454,6 +1842,12 @@
     const today = new Date().toISOString().slice(0,10);
     document.getElementById('exp-date').value = today;
     document.getElementById('sched-date').value = today;
+  }
+
+  function toggleCustomCat() {
+    const sel = document.getElementById('exp-category');
+    const grp = document.getElementById('custom-cat-group');
+    if (grp) grp.style.display = sel.value === 'Other' ? 'block' : 'none';
   }
 
   function toggleSetupHint() {
