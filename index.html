@@ -590,26 +590,31 @@
         </div>
       </div>
 
-      <div class="section-title">Scheduled payments calendar</div>
+      <div class="section-title">Calendar</div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;font-size:11px;">
+        <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#4f8ef7;display:inline-block;"></span>Scheduled</span>
+        <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#f7a84f;display:inline-block;"></span>Bill</span>
+        <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#f76f6f;display:inline-block;"></span>Expense</span>
+      </div>
       <div class="card" style="padding:0; overflow:hidden; margin-bottom:28px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border);">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--border);">
           <button class="btn btn-secondary btn-sm" onclick="calPrev()">&#8592;</button>
           <div id="cal-month-label" style="font-weight:600; font-size:14px;"></div>
           <button class="btn btn-secondary btn-sm" onclick="calNext()">&#8594;</button>
         </div>
-        <div style="padding:16px 20px;">
-          <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:8px;">
-            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:4px;">Su</div>
-            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:4px;">Mo</div>
-            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:4px;">Tu</div>
-            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:4px;">We</div>
-            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:4px;">Th</div>
-            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:4px;">Fr</div>
-            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:4px;">Sa</div>
+        <div style="padding:12px 16px;">
+          <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:4px;">
+            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:6px 2px;">Sun</div>
+            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:6px 2px;">Mon</div>
+            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:6px 2px;">Tue</div>
+            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:6px 2px;">Wed</div>
+            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:6px 2px;">Thu</div>
+            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:6px 2px;">Fri</div>
+            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:6px 2px;">Sat</div>
           </div>
-          <div id="cal-grid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;"></div>
+          <div id="cal-grid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;"></div>
         </div>
-        <div id="cal-detail" style="border-top:1px solid var(--border); padding:14px 20px; display:none; font-size:13px;"></div>
+        <div id="cal-detail" style="border-top:1px solid var(--border); padding:16px 20px; display:none; font-size:13px;"></div>
       </div>
     </div>
 
@@ -823,7 +828,7 @@
   // ============================================================
   // CONFIGURATION — paste your Google OAuth Client ID here
   // ============================================================
-  const CLIENT_ID = '803010094338-5deiv8s131d8m5qjr12pqt6kcod01msp.apps.googleusercontent.com';
+  const CLIENT_ID = 'YOUR_GOOGLE_OAUTH_CLIENT_ID';
   const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
   const SHEET_TITLE = 'Budget App Data';
 
@@ -1204,18 +1209,23 @@
 
     userData.scheduled.forEach(p => {
       if (!p.date) return;
-      const key = p.date;
-      if (!events[key]) events[key] = [];
-      events[key].push({ name: p.name, amount: p.amount, status: p.status || 'Upcoming', type: 'scheduled' });
+      if (!events[p.date]) events[p.date] = [];
+      events[p.date].push({ name: p.name, amount: p.amount, label: p.status || 'Upcoming', type: 'scheduled', color: '#4f8ef7' });
     });
 
     userData.bills.forEach(b => {
-      for (let mo = -1; mo <= 2; mo++) {
+      for (let mo = -2; mo <= 3; mo++) {
         const d = new Date(now.getFullYear(), now.getMonth() + mo, parseInt(b.day));
         const key = d.toISOString().slice(0,10);
         if (!events[key]) events[key] = [];
-        events[key].push({ name: b.name, amount: b.amount, status: 'Bill', type: 'bill' });
+        events[key].push({ name: b.name, amount: b.amount, label: 'Bill', type: 'bill', color: '#f7a84f' });
       }
+    });
+
+    userData.expenses.forEach(e => {
+      if (!e.date) return;
+      if (!events[e.date]) events[e.date] = [];
+      events[e.date].push({ name: e.desc, amount: e.amount, label: e.category, type: 'expense', color: '#f76f6f' });
     });
 
     return events;
@@ -1232,21 +1242,30 @@
     document.getElementById('cal-month-label').textContent = monthNames[calMonth] + ' ' + calYear;
 
     let cells = '';
-    for (let i = 0; i < startDow; i++) cells += '<div></div>';
+    for (let i = 0; i < startDow; i++) {
+      cells += '<div style="min-height:90px;background:rgba(255,255,255,0.01);border-radius:6px;"></div>';
+    }
+
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
-      const hasEvents = events[dateStr] && events[dateStr].length > 0;
+      const dayEvents = events[dateStr] || [];
       const isToday = new Date(calYear, calMonth, d).getTime() === today.getTime();
-      const hasPaid = hasEvents && events[dateStr].every(e => e.status === 'Paid');
-      const hasUnpaid = hasEvents && events[dateStr].some(e => e.status !== 'Paid');
 
-      const dotColor = hasPaid ? 'var(--accent2)' : hasUnpaid ? 'var(--danger)' : 'transparent';
-      const todayStyle = isToday ? 'background:var(--accent);color:#fff;border-radius:50%;' : '';
-      const cursor = hasEvents ? 'cursor:pointer;' : '';
+      const dayNumStyle = isToday
+        ? 'display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-weight:600;'
+        : 'color:var(--text);';
 
-      cells += `<div onclick="calDayClick('${dateStr}')" style="text-align:center;padding:6px 2px;font-size:12px;position:relative;${todayStyle}${cursor}">
-        ${d}
-        ${hasEvents ? `<div style="width:5px;height:5px;border-radius:50%;background:${dotColor};margin:2px auto 0;"></div>` : '<div style="height:7px;"></div>'}
+      const eventBlocks = dayEvents.slice(0, 3).map(ev => {
+        const truncName = ev.name.length > 10 ? ev.name.slice(0,10) + '...' : ev.name;
+        return `<div style="background:${ev.color}22;border-left:2px solid ${ev.color};border-radius:3px;padding:2px 4px;margin-top:2px;font-size:10px;color:${ev.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;" title="${ev.name} ${fmt(ev.amount)}">${truncName}</div>`;
+      }).join('');
+
+      const moreLabel = dayEvents.length > 3 ? `<div style="font-size:9px;color:var(--muted);margin-top:2px;">+${dayEvents.length - 3} more</div>` : '';
+
+      cells += `<div onclick="calDayClick('${dateStr}')" style="min-height:90px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:6px;cursor:${dayEvents.length ? 'pointer' : 'default'};transition:background 0.1s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='rgba(255,255,255,0.02)'">
+        <div style="font-size:11px;font-weight:500;margin-bottom:2px;${dayNumStyle}">${d}</div>
+        ${eventBlocks}
+        ${moreLabel}
       </div>`;
     }
 
@@ -1259,14 +1278,14 @@
     const detail = document.getElementById('cal-detail');
     if (!dayEvents || !dayEvents.length) { detail.style.display = 'none'; return; }
     detail.style.display = 'block';
-    detail.innerHTML = `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">${fmtDate(dateStr)}</div>` +
+    detail.innerHTML = `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;">${fmtDate(dateStr)}</div>` +
       dayEvents.map(e => `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;margin-bottom:6px;border-radius:8px;background:${e.color}18;border-left:3px solid ${e.color};">
           <div>
-            <span style="font-weight:500;">${e.name}</span>
-            <span style="font-size:11px;color:var(--muted);margin-left:8px;">${e.status}</span>
+            <span style="font-weight:500;color:var(--text);">${e.name}</span>
+            <span style="font-size:11px;color:var(--muted);margin-left:8px;">${e.label}</span>
           </div>
-          <span style="font-family:var(--mono);color:var(--danger);">${fmt(e.amount)}</span>
+          <span style="font-family:var(--mono);font-size:13px;color:${e.color};">${fmt(e.amount)}</span>
         </div>
       `).join('');
   }
