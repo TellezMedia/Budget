@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Budget</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    :root {
+      --bg: #0f1117;
+      --surface: #181c27;
+      --surface2: #1e2333;
+      --border: #2a2f42;
+      --accent: #4f8ef7;
+      --accent2: #38d9a9;
+      --warn: #f7a84f;
+      --danger: #f76f6f;
+      --text: #e4e8f0;
+      --muted: #7a84a0;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Inter', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      font-size: 14px;
+    }
+
+    /* AUTH SCREEN */
+    #auth-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 32px;
+    }
+
+    .auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px 40px;
+      width: 380px;
+      text-align: center;
+    }
+
+    .auth-logo {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+
+    .auth-title {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .auth-sub {
+      color: var(--muted);
+      margin-bottom: 36px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .btn-google {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 24px;
+      font-family: var(--sans);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      width: 100%;
+      transition: opacity 0.15s;
+    }
+
+    .btn-google:hover { opacity: 0.88; }
+
+    /* APP SHELL */
+    #app { display: none; flex-direction: column; min-height: 100vh; }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-brand {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .header-user {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .user-menu {
+      position: absolute;
+      top: 44px;
+      right: 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px;
+      min-width: 180px;
+      display: none;
+    }
+
+    .user-menu.open { display: block; }
+
+    .user-menu-item {
+      padding: 10px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--muted);
+      transition: background 0.1s;
+    }
+
+    .user-menu-item:hover { background: var(--border); color: var(--text); }
+    .user-menu-item.danger { color: var(--danger); }
+
+    nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 0;
+      padding: 0 24px;
+      overflow-x: auto;
+    }
+
+    .nav-tab {
+      padding: 14px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .nav-tab:hover { color: var(--text); }
+
+    main {
+      padding: 28px 24px;
+      max-width: 960px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* DASHBOARD */
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .cards-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .card-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+    }
+
+    .card-value {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .card-value.green { color: var(--accent2); }
+    .card-value.warn { color: var(--warn); }
+    .card-value.red { color: var(--danger); }
+
+    .card-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .upcoming-list {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+
+    .list-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .list-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .list-row:last-child { border-bottom: none; }
+
+    .list-row-left { display: flex; flex-direction: column; gap: 3px; }
+    .list-row-name { font-weight: 500; }
+    .list-row-date { font-size: 11px; color: var(--muted); }
+    .list-row-amount { font-family: var(--mono); font-size: 14px; }
+    .list-row-amount.red { color: var(--danger); }
+    .list-row-amount.green { color: var(--accent2); }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .badge.upcoming { background: rgba(247,168,79,0.15); color: var(--warn); }
+    .badge.paid { background: rgba(56,217,169,0.15); color: var(--accent2); }
+    .badge.overdue { background: rgba(247,111,111,0.15); color: var(--danger); }
+
+    /* FORMS */
+    .form-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .form-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+
+    label {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+
+    input, select, textarea {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+
+    select option { background: var(--surface2); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s;
+    }
+
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-danger { background: rgba(247,111,111,0.15); color: var(--danger); border: 1px solid rgba(247,111,111,0.3); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+    .data-table {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+
+    .data-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+
+    .data-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .mono { font-family: var(--mono); }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    .dot-green { background: var(--accent2); }
+    .dot-warn { background: var(--warn); }
+    .dot-red { background: var(--danger); }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 20px;
+      font-size: 13px;
+      max-width: 320px;
+      z-index: 999;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all 0.2s;
+      pointer-events: none;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { border-color: var(--accent2); }
+    .toast.error { border-color: var(--danger); }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 24px 0;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .config-section {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    .config-section strong { color: var(--text); }
+    .config-section code {
+      background: var(--bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    .setup-needed {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 36px;
+      text-align: center;
+    }
+
+    .setup-needed h3 { font-size: 17px; margin-bottom: 10px; }
+    .setup-needed p { color: var(--muted); font-size: 13px; line-height: 1.7; max-width: 480px; margin: 0 auto 24px; }
+
+    @media (max-width: 600px) {
+      main { padding: 20px 16px; }
+      header { padding: 0 16px; }
+      nav { padding: 0 12px; }
+      .nav-tab { padding: 14px 14px; font-size: 12px; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">Budget</div>
+    <h1 class="auth-title">Your money, your data</h1>
+    <p class="auth-sub">Sign in with Google. Your budget lives in your own Google Sheet, only you can see it.</p>
+    <button class="btn-google" onclick="signIn()">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#fff" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#fff" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#fff" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#fff" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/></svg>
+      Continue with Google
+    </button>
+  </div>
+  <div id="setup-hint" style="display:none; max-width:520px; padding:0 24px;">
+    <div class="config-section">
+      <strong>First-time setup required.</strong> Before signing in, you need a Google OAuth Client ID.<br><br>
+      1. Go to <strong>console.cloud.google.com</strong> and create a project.<br>
+      2. Enable <strong>Google Sheets API</strong> and <strong>Google Drive API</strong>.<br>
+      3. Under Credentials, create an <strong>OAuth 2.0 Client ID</strong> (Web application type).<br>
+      4. Add your GitHub Pages URL to <strong>Authorized JavaScript origins</strong>.<br>
+      5. Copy the Client ID and paste it into <code>CLIENT_ID</code> at the top of this file.<br><br>
+      <strong>Hosting:</strong> Push this file to a GitHub repo, enable GitHub Pages under Settings, and your app is live for free.
+    </div>
+  </div>
+  <button class="btn btn-secondary btn-sm" onclick="toggleSetupHint()" style="margin-top:-12px;">Setup instructions</button>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="header-brand">Budget</div>
+    <div class="header-user" onclick="toggleUserMenu()">
+      <div class="avatar" id="user-avatar">AT</div>
+      <div class="user-menu" id="user-menu">
+        <div class="user-menu-item" id="user-name-display">Tony Tellez</div>
+        <div class="user-menu-item" onclick="openSheetUrl()">Open my Sheet</div>
+        <div class="user-menu-item danger" onclick="signOut()">Sign out</div>
+      </div>
+    </div>
+  </header>
+  <nav>
+    <div class="nav-tab active" onclick="showScreen('dashboard', this)">Dashboard</div>
+    <div class="nav-tab" onclick="showScreen('expenses', this)">Expenses</div>
+    <div class="nav-tab" onclick="showScreen('bills', this)">Bills</div>
+    <div class="nav-tab" onclick="showScreen('scheduled', this)">Scheduled</div>
+    <div class="nav-tab" onclick="showScreen('balances', this)">Accounts</div>
+  </nav>
+  <main>
+
+    <!-- DASHBOARD -->
+    <div id="screen-dashboard" class="screen active">
+      <div class="section-title">Overview</div>
+      <div class="cards-row" id="balance-cards">
+        <div class="card">
+          <div class="card-label">PNC Checking</div>
+          <div class="card-value green" id="dash-pnc">$0.00</div>
+          <div class="card-sub">Current balance</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Chime</div>
+          <div class="card-value green" id="dash-chime">$0.00</div>
+          <div class="card-sub">Current balance</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Next Deposit</div>
+          <div class="card-value" id="dash-next-deposit">$4,097.82</div>
+          <div class="card-sub" id="dash-next-date">Biweekly</div>
+        </div>
+        <div class="card">
+          <div class="card-label">This Month Spent</div>
+          <div class="card-value warn" id="dash-spent">$0.00</div>
+          <div class="card-sub">Expenses logged</div>
+        </div>
+      </div>
+
+      <div class="section-title">Upcoming payments (next 14 days)</div>
+      <div class="upcoming-list">
+        <div id="upcoming-list-body">
+          <div class="empty-state">No upcoming payments found.</div>
+        </div>
+      </div>
+
+      <div class="section-title">Recent expenses</div>
+      <div class="upcoming-list">
+        <div id="recent-expenses-body">
+          <div class="empty-state">No expenses logged yet.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPENSES -->
+    <div id="screen-expenses" class="screen">
+      <div class="form-card">
+        <div class="form-title">Log an expense</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="exp-date" />
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <input type="text" id="exp-desc" placeholder="Gas, groceries..." />
+          </div>
+          <div class="form-group">
+            <label>Amount</label>
+            <input type="number" id="exp-amount" placeholder="0.00" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="exp-category">
+              <option>Food</option>
+              <option>Gas</option>
+              <option>Groceries</option>
+              <option>Entertainment</option>
+              <option>Shopping</option>
+              <option>Health</option>
+              <option>Utilities</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Account</label>
+            <select id="exp-account">
+              <option>PNC</option>
+              <option>Chime</option>
+              <option>Cash</option>
+              <option>Credit Card</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="addExpense()">Save expense</button>
+      </div>
+
+      <div class="data-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Category</th>
+              <th>Account</th>
+              <th>Amount</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="expenses-tbody">
+            <tr><td colspan="6"><div class="empty-state">No expenses yet.</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BILLS -->
+    <div id="screen-bills" class="screen">
+      <div class="form-card">
+        <div class="form-title">Add a recurring bill</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Bill name</label>
+            <input type="text" id="bill-name" placeholder="Netflix, rent..." />
+          </div>
+          <div class="form-group">
+            <label>Amount</label>
+            <input type="number" id="bill-amount" placeholder="0.00" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>Due day of month</label>
+            <input type="number" id="bill-day" placeholder="1-31" min="1" max="31" />
+          </div>
+          <div class="form-group">
+            <label>Account</label>
+            <select id="bill-account">
+              <option>PNC</option>
+              <option>Chime</option>
+              <option>Auto-pay</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Frequency</label>
+            <select id="bill-freq">
+              <option>Monthly</option>
+              <option>Biweekly</option>
+              <option>Weekly</option>
+              <option>Annual</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="addBill()">Save bill</button>
+      </div>
+
+      <div class="data-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Amount</th>
+              <th>Due Day</th>
+              <th>Account</th>
+              <th>Frequency</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="bills-tbody">
+            <tr><td colspan="6"><div class="empty-state">No bills added yet.</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SCHEDULED PAYMENTS -->
+    <div id="screen-scheduled" class="screen">
+      <div class="form-card">
+        <div class="form-title">Add a scheduled payment</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="sched-name" placeholder="Car payment..." />
+          </div>
+          <div class="form-group">
+            <label>Amount</label>
+            <input type="number" id="sched-amount" placeholder="0.00" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>Due date</label>
+            <input type="date" id="sched-date" />
+          </div>
+          <div class="form-group">
+            <label>Account</label>
+            <select id="sched-account">
+              <option>PNC</option>
+              <option>Chime</option>
+              <option>Auto-pay</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="addScheduled()">Save payment</button>
+      </div>
+
+      <div class="data-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Amount</th>
+              <th>Due Date</th>
+              <th>Account</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="scheduled-tbody">
+            <tr><td colspan="6"><div class="empty-state">No scheduled payments yet.</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BALANCES -->
+    <div id="screen-balances" class="screen">
+      <div class="form-card">
+        <div class="form-title">Update account balances</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Account name</label>
+            <input type="text" id="bal-account" placeholder="PNC, Chime..." />
+          </div>
+          <div class="form-group">
+            <label>Current balance</label>
+            <input type="number" id="bal-amount" placeholder="0.00" step="0.01" />
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="addBalance()">Update balance</button>
+      </div>
+
+      <div class="data-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Account</th>
+              <th>Balance</th>
+              <th>Last Updated</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="balances-tbody">
+            <tr><td colspan="4"><div class="empty-state">No accounts yet.</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ============================================================
+  // CONFIGURATION — paste your Google OAuth Client ID here
+  // ============================================================
+  const CLIENT_ID = 'YOUR_GOOGLE_OAUTH_CLIENT_ID';
+  const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
+  const SHEET_TITLE = 'Budget App Data';
+
+  // ============================================================
+  // Sheet tab names
+  // ============================================================
+  const TABS = {
+    expenses:  'Expenses',
+    bills:     'Bills',
+    scheduled: 'Scheduled',
+    balances:  'Balances'
+  };
+
+  let tokenClient;
+  let accessToken = null;
+  let sheetId = null;
+  let userData = { expenses: [], bills: [], scheduled: [], balances: [] };
+
+  // ---- Auth ----
+
+  function initGoogle() {
+    if (!CLIENT_ID || CLIENT_ID === 'YOUR_GOOGLE_OAUTH_CLIENT_ID') {
+      document.getElementById('setup-hint').style.display = 'block';
+      return;
+    }
+    google.accounts.id.initialize({ client_id: CLIENT_ID, callback: () => {} });
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: async (resp) => {
+        if (resp.error) { showToast('Sign-in failed: ' + resp.error, 'error'); return; }
+        accessToken = resp.access_token;
+        await onSignedIn();
+      }
+    });
+  }
+
+  function signIn() {
+    if (!CLIENT_ID || CLIENT_ID === 'YOUR_GOOGLE_OAUTH_CLIENT_ID') {
+      showToast('Add your Client ID to the top of this file first.', 'error');
+      document.getElementById('setup-hint').style.display = 'block';
+      return;
+    }
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  }
+
+  function signOut() {
+    google.accounts.oauth2.revoke(accessToken, () => {});
+    accessToken = null; sheetId = null;
+    userData = { expenses: [], bills: [], scheduled: [], balances: [] };
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+  }
+
+  async function onSignedIn() {
+    const profile = await fetchProfile();
+    const initials = (profile.name || 'U').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+    document.getElementById('user-avatar').textContent = initials;
+    document.getElementById('user-name-display').textContent = profile.name || 'My Account';
+
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('app').style.flexDirection = 'column';
+
+    await ensureSheet();
+    await loadAllData();
+    renderDashboard();
+    setDefaultDates();
+  }
+
+  async function fetchProfile() {
+    const r = await gFetch('https://www.googleapis.com/oauth2/v3/userinfo');
+    return r.ok ? await r.json() : {};
+  }
+
+  // ---- Google Sheets helpers ----
+
+  function gFetch(url, opts = {}) {
+    opts.headers = { ...(opts.headers || {}), Authorization: 'Bearer ' + accessToken };
+    return fetch(url, opts);
+  }
+
+  async function ensureSheet() {
+    // Search for existing sheet
+    const search = await gFetch(
+      `https://www.googleapis.com/drive/v3/files?q=name='${SHEET_TITLE}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false&fields=files(id,name)`
+    );
+    const data = await search.json();
+    if (data.files && data.files.length > 0) {
+      sheetId = data.files[0].id;
+      await ensureTabs();
+      return;
+    }
+    // Create new sheet
+    const create = await gFetch('https://sheets.googleapis.com/v4/spreadsheets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        properties: { title: SHEET_TITLE },
+        sheets: Object.values(TABS).map(t => ({ properties: { title: t } }))
+      })
+    });
+    const sheet = await create.json();
+    sheetId = sheet.spreadsheetId;
+    await addHeaders();
+  }
+
+  async function ensureTabs() {
+    const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`);
+    const data = await r.json();
+    const existing = (data.sheets || []).map(s => s.properties.title);
+    const requests = [];
+    for (const t of Object.values(TABS)) {
+      if (!existing.includes(t)) requests.push({ addSheet: { properties: { title: t } } });
+    }
+    if (requests.length) {
+      await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests })
+      });
+      await addHeaders();
+    }
+  }
+
+  async function addHeaders() {
+    const headers = {
+      [TABS.expenses]:  [['Date','Description','Category','Account','Amount']],
+      [TABS.bills]:     [['Name','Amount','DueDay','Account','Frequency']],
+      [TABS.scheduled]: [['Name','Amount','DueDate','Account','Status']],
+      [TABS.balances]:  [['Account','Balance','LastUpdated']]
+    };
+    const data = Object.entries(headers).map(([tab, vals]) => ({
+      range: `${tab}!A1`,
+      values: vals
+    }));
+    await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchUpdate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ valueInputOption: 'RAW', data })
+    });
+  }
+
+  async function appendRow(tab, row) {
+    await gFetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [row] })
+      }
+    );
+  }
+
+  async function readSheet(tab) {
+    const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}`);
+    const data = await r.json();
+    return (data.values || []).slice(1); // skip header row
+  }
+
+  async function deleteRow(tab, rowIndex) {
+    // rowIndex is 0-based from our data array, +1 for header, +1 for 1-based = +2
+    const sheetMeta = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`);
+    const meta = await sheetMeta.json();
+    const sheetObj = meta.sheets.find(s => s.properties.title === tab);
+    if (!sheetObj) return;
+    const sheetIdNum = sheetObj.properties.sheetId;
+    await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requests: [{
+          deleteDimension: {
+            range: { sheetId: sheetIdNum, dimension: 'ROWS', startIndex: rowIndex + 1, endIndex: rowIndex + 2 }
+          }
+        }]
+      })
+    });
+  }
+
+  async function updateCell(tab, rowIndex, colIndex, value) {
+    const col = String.fromCharCode(65 + colIndex);
+    const row = rowIndex + 2; // +1 header +1 1-based
+    await gFetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}!${col}${row}?valueInputOption=RAW`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [[value]] })
+      }
+    );
+  }
+
+  function openSheetUrl() {
+    if (sheetId) window.open(`https://docs.google.com/spreadsheets/d/${sheetId}`, '_blank');
+  }
+
+  // ---- Load all data ----
+
+  async function loadAllData() {
+    const [expenses, bills, scheduled, balances] = await Promise.all([
+      readSheet(TABS.expenses),
+      readSheet(TABS.bills),
+      readSheet(TABS.scheduled),
+      readSheet(TABS.balances)
+    ]);
+    userData.expenses  = expenses.map(r => ({ date: r[0], desc: r[1], category: r[2], account: r[3], amount: parseFloat(r[4]) || 0 }));
+    userData.bills     = bills.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, day: r[2], account: r[3], freq: r[4] }));
+    userData.scheduled = scheduled.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, date: r[2], account: r[3], status: r[4] || 'Upcoming' }));
+    userData.balances  = balances.map(r => ({ account: r[0], balance: parseFloat(r[1]) || 0, updated: r[2] }));
+    renderAll();
+  }
+
+  // ---- Add records ----
+
+  async function addExpense() {
+    const d = v('exp-date'), desc = v('exp-desc'), amt = parseFloat(v('exp-amount')), cat = v('exp-category'), acc = v('exp-account');
+    if (!d || !desc || !amt) { showToast('Fill in date, description, and amount.', 'error'); return; }
+    await appendRow(TABS.expenses, [d, desc, cat, acc, amt]);
+    userData.expenses.unshift({ date: d, desc, category: cat, account: acc, amount: amt });
+    clear('exp-desc'); clear('exp-amount');
+    renderAll(); showToast('Expense saved.', 'success');
+  }
+
+  async function addBill() {
+    const name = v('bill-name'), amt = parseFloat(v('bill-amount')), day = v('bill-day'), acc = v('bill-account'), freq = v('bill-freq');
+    if (!name || !amt || !day) { showToast('Fill in name, amount, and due day.', 'error'); return; }
+    await appendRow(TABS.bills, [name, amt, day, acc, freq]);
+    userData.bills.push({ name, amount: amt, day, account: acc, freq });
+    clear('bill-name'); clear('bill-amount'); clear('bill-day');
+    renderAll(); showToast('Bill saved.', 'success');
+  }
+
+  async function addScheduled() {
+    const name = v('sched-name'), amt = parseFloat(v('sched-amount')), date = v('sched-date'), acc = v('sched-account');
+    if (!name || !amt || !date) { showToast('Fill in name, amount, and due date.', 'error'); return; }
+    await appendRow(TABS.scheduled, [name, amt, date, acc, 'Upcoming']);
+    userData.scheduled.push({ name, amount: amt, date, account: acc, status: 'Upcoming' });
+    clear('sched-name'); clear('sched-amount'); clear('sched-date');
+    renderAll(); showToast('Payment saved.', 'success');
+  }
+
+  async function addBalance() {
+    const acc = v('bal-account'), bal = parseFloat(v('bal-amount'));
+    if (!acc || isNaN(bal)) { showToast('Fill in account and balance.', 'error'); return; }
+    const today = new Date().toLocaleDateString();
+    const existing = userData.balances.findIndex(b => b.account.toLowerCase() === acc.toLowerCase());
+    if (existing >= 0) {
+      await updateCell(TABS.balances, existing, 1, bal);
+      await updateCell(TABS.balances, existing, 2, today);
+      userData.balances[existing].balance = bal;
+      userData.balances[existing].updated = today;
+    } else {
+      await appendRow(TABS.balances, [acc, bal, today]);
+      userData.balances.push({ account: acc, balance: bal, updated: today });
+    }
+    clear('bal-account'); clear('bal-amount');
+    renderAll(); showToast('Balance updated.', 'success');
+  }
+
+  // ---- Delete records ----
+
+  async function deleteExpense(i) {
+    await deleteRow(TABS.expenses, i);
+    userData.expenses.splice(i, 1);
+    renderAll(); showToast('Expense removed.', 'success');
+  }
+
+  async function deleteBill(i) {
+    await deleteRow(TABS.bills, i);
+    userData.bills.splice(i, 1);
+    renderAll(); showToast('Bill removed.', 'success');
+  }
+
+  async function deleteScheduled(i) {
+    await deleteRow(TABS.scheduled, i);
+    userData.scheduled.splice(i, 1);
+    renderAll(); showToast('Payment removed.', 'success');
+  }
+
+  async function markPaid(i) {
+    await updateCell(TABS.scheduled, i, 4, 'Paid');
+    userData.scheduled[i].status = 'Paid';
+    renderAll(); showToast('Marked as paid.', 'success');
+  }
+
+  // ---- Render ----
+
+  function renderAll() {
+    renderDashboard();
+    renderExpenses();
+    renderBills();
+    renderScheduled();
+    renderBalances();
+  }
+
+  function renderDashboard() {
+    // Balances
+    const pnc = userData.balances.find(b => b.account.toLowerCase().includes('pnc'));
+    const chime = userData.balances.find(b => b.account.toLowerCase().includes('chime'));
+    document.getElementById('dash-pnc').textContent = fmt(pnc ? pnc.balance : 0);
+    document.getElementById('dash-chime').textContent = fmt(chime ? chime.balance : 0);
+
+    // This month spent
+    const now = new Date();
+    const monthSpent = userData.expenses
+      .filter(e => { const d = new Date(e.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); })
+      .reduce((s, e) => s + e.amount, 0);
+    document.getElementById('dash-spent').textContent = fmt(monthSpent);
+
+    // Upcoming payments (next 14 days)
+    const today = new Date(); today.setHours(0,0,0,0);
+    const in14 = new Date(today); in14.setDate(in14.getDate() + 14);
+
+    const upcoming = [];
+
+    userData.scheduled.filter(p => p.status !== 'Paid').forEach(p => {
+      const d = new Date(p.date);
+      if (d >= today && d <= in14) upcoming.push({ name: p.name, date: p.date, amount: p.amount, type: 'payment' });
+    });
+
+    userData.bills.forEach(b => {
+      const day = parseInt(b.day);
+      [0, 1].forEach(mo => {
+        const d = new Date(now.getFullYear(), now.getMonth() + mo, day);
+        if (d >= today && d <= in14) upcoming.push({ name: b.name, date: d.toISOString().slice(0,10), amount: b.amount, type: 'bill' });
+      });
+    });
+
+    upcoming.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    const upEl = document.getElementById('upcoming-list-body');
+    if (!upcoming.length) {
+      upEl.innerHTML = '<div class="empty-state">No payments due in the next 14 days.</div>';
+    } else {
+      upEl.innerHTML = upcoming.map(p => `
+        <div class="list-row">
+          <div class="list-row-left">
+            <div class="list-row-name">${p.name}</div>
+            <div class="list-row-date">${fmtDate(p.date)}</div>
+          </div>
+          <div class="list-row-amount red">${fmt(p.amount)}</div>
+        </div>
+      `).join('');
+    }
+
+    // Recent expenses
+    const recent = userData.expenses.slice(0, 5);
+    const reEl = document.getElementById('recent-expenses-body');
+    if (!recent.length) {
+      reEl.innerHTML = '<div class="empty-state">No expenses logged yet.</div>';
+    } else {
+      reEl.innerHTML = recent.map(e => `
+        <div class="list-row">
+          <div class="list-row-left">
+            <div class="list-row-name">${e.desc}</div>
+            <div class="list-row-date">${fmtDate(e.date)} · ${e.category} · ${e.account}</div>
+          </div>
+          <div class="list-row-amount red">${fmt(e.amount)}</div>
+        </div>
+      `).join('');
+    }
+  }
+
+  function renderExpenses() {
+    const tbody = document.getElementById('expenses-tbody');
+    if (!userData.expenses.length) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No expenses yet.</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = userData.expenses.map((e, i) => `
+      <tr>
+        <td>${fmtDate(e.date)}</td>
+        <td>${e.desc}</td>
+        <td>${e.category}</td>
+        <td>${e.account}</td>
+        <td class="mono">${fmt(e.amount)}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteExpense(${i})">Remove</button></td>
+      </tr>
+    `).join('');
+  }
+
+  function renderBills() {
+    const tbody = document.getElementById('bills-tbody');
+    if (!userData.bills.length) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No bills added yet.</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = userData.bills.map((b, i) => `
+      <tr>
+        <td>${b.name}</td>
+        <td class="mono">${fmt(b.amount)}</td>
+        <td>Day ${b.day}</td>
+        <td>${b.account}</td>
+        <td>${b.freq}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteBill(${i})">Remove</button></td>
+      </tr>
+    `).join('');
+  }
+
+  function renderScheduled() {
+    const tbody = document.getElementById('scheduled-tbody');
+    if (!userData.scheduled.length) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No scheduled payments yet.</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = userData.scheduled.map((p, i) => {
+      const status = p.status || 'Upcoming';
+      const badge = status === 'Paid' ? 'paid' : isOverdue(p.date) ? 'overdue' : 'upcoming';
+      const badgeLabel = badge === 'overdue' ? 'Overdue' : status;
+      return `
+        <tr>
+          <td>${p.name}</td>
+          <td class="mono">${fmt(p.amount)}</td>
+          <td>${fmtDate(p.date)}</td>
+          <td>${p.account}</td>
+          <td><span class="badge ${badge}">${badgeLabel}</span></td>
+          <td style="display:flex;gap:6px;">
+            ${status !== 'Paid' ? `<button class="btn btn-secondary btn-sm" onclick="markPaid(${i})">Mark paid</button>` : ''}
+            <button class="btn btn-danger btn-sm" onclick="deleteScheduled(${i})">Remove</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function renderBalances() {
+    const tbody = document.getElementById('balances-tbody');
+    if (!userData.balances.length) {
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state">No accounts yet.</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = userData.balances.map((b, i) => `
+      <tr>
+        <td>${b.account}</td>
+        <td class="mono" style="color:var(--accent2)">${fmt(b.balance)}</td>
+        <td style="color:var(--muted)">${b.updated}</td>
+        <td></td>
+      </tr>
+    `).join('');
+  }
+
+  // ---- Utilities ----
+
+  function v(id) { return document.getElementById(id).value; }
+  function clear(id) { document.getElementById(id).value = ''; }
+  function fmt(n) { return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+  function fmtDate(str) {
+    if (!str) return '';
+    const d = new Date(str + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function isOverdue(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const today = new Date(); today.setHours(0,0,0,0);
+    return d < today;
+  }
+
+  function showScreen(name, el) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('screen-' + name).classList.add('active');
+    el.classList.add('active');
+  }
+
+  function toggleUserMenu() {
+    document.getElementById('user-menu').classList.toggle('open');
+  }
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.header-user')) {
+      document.getElementById('user-menu').classList.remove('open');
+    }
+  });
+
+  let toastTimer;
+  function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  function setDefaultDates() {
+    const today = new Date().toISOString().slice(0,10);
+    document.getElementById('exp-date').value = today;
+    document.getElementById('sched-date').value = today;
+  }
+
+  function toggleSetupHint() {
+    const el = document.getElementById('setup-hint');
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  }
+
+  // ---- Init ----
+  window.onload = () => initGoogle();
+</script>
+
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</body>
+</html>
