@@ -1055,8 +1055,9 @@
 
   function signOut() {
     google.accounts.oauth2.revoke(accessToken, () => {});
-    accessToken = null; sheetId = null;
-    userData = { expenses: [], bills: [], scheduled: [], balances: [] };
+    accessToken = null; sheetId = null; budgetSheetId = null;
+    userData = { expenses: [], bills: [], scheduled: [], balances: [], transactions: [] };
+    budgetData = { targets: [] };
     document.getElementById('app').style.display = 'none';
     document.getElementById('auth-screen').style.display = 'flex';
   }
@@ -1122,9 +1123,13 @@
     const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`);
     const data = await r.json();
     const existing = (data.sheets || []).map(s => s.properties.title);
+    const newTabs = [];
     const requests = [];
     for (const t of Object.values(TABS)) {
-      if (!existing.includes(t)) requests.push({ addSheet: { properties: { title: t } } });
+      if (!existing.includes(t)) {
+        requests.push({ addSheet: { properties: { title: t } } });
+        newTabs.push(t);
+      }
     }
     if (requests.length) {
       await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
@@ -1132,7 +1137,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests })
       });
-      await addHeaders();
+      // Only write headers for newly created tabs, not existing ones
+      await addHeadersForTabs(newTabs);
     }
   }
 
@@ -1211,12 +1217,18 @@
     if (el) el.textContent = months[now.getMonth()] + ' ' + now.getFullYear();
   }
 
+  function safeParseDate(str) {
+    if (!str) return new Date('invalid');
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str + 'T00:00:00');
+    return new Date(str);
+  }
+
   function getMonthlySpendingByCategory() {
     const now = new Date();
     const spending = {};
     userData.expenses.forEach(e => {
-      const d = new Date(e.date + 'T00:00:00');
-      if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+      const d = safeParseDate(e.date);
+      if (!isNaN(d) && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
         const cat = e.category || 'Other';
         spending[cat] = (spending[cat] || 0) + e.amount;
       }
@@ -1345,15 +1357,26 @@
     `).join('');
   }
 
+  const ALL_HEADERS = {
+    [TABS.expenses]:     [['Date','Description','Category','Account','Amount']],
+    [TABS.bills]:        [['Name','Amount','DueDay','Account','Frequency']],
+    [TABS.scheduled]:    [['Name','Amount','DueDate','Account','Status']],
+    [TABS.balances]:     [['Account','StartingBalance','CurrentBalance','LastUpdated']],
+    [TABS.transactions]: [['Date','Type','Description','Account','Amount']]
+  };
+
+  async function addHeadersForTabs(tabs) {
+    const data = tabs.filter(t => ALL_HEADERS[t]).map(t => ({ range: `${t}!A1`, values: ALL_HEADERS[t] }));
+    if (!data.length) return;
+    await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchUpdate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ valueInputOption: 'RAW', data })
+    });
+  }
+
   async function addHeaders() {
-    const headers = {
-      [TABS.expenses]:     [['Date','Description','Category','Account','Amount']],
-      [TABS.bills]:        [['Name','Amount','DueDay','Account','Frequency']],
-      [TABS.scheduled]:    [['Name','Amount','DueDate','Account','Status']],
-      [TABS.balances]:     [['Account','StartingBalance','CurrentBalance','LastUpdated']],
-      [TABS.transactions]: [['Date','Type','Description','Account','Amount']]
-    };
-    const data = Object.entries(headers).map(([tab, vals]) => ({
+    const data = Object.entries(ALL_HEADERS).map(([tab, vals]) => ({
       range: `${tab}!A1`,
       values: vals
     }));
@@ -1731,7 +1754,7 @@
 
     // This month spent
     const monthSpent = userData.expenses
-      .filter(e => { const d = new Date(e.date + 'T00:00:00'); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); })
+      .filter(e => { const d = safeParseDate(e.date); return !isNaN(d) && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); })
       .reduce((s, e) => s + e.amount, 0);
     document.getElementById('dash-spent').textContent = fmt(monthSpent);
 
@@ -1815,8 +1838,11 @@
 
     userData.expenses.forEach(e => {
       if (!e.date) return;
-      if (!events[e.date]) events[e.date] = [];
-      events[e.date].push({ name: e.desc, amount: e.amount, label: e.category, type: 'expense', color: '#f76f6f' });
+      // Normalize date key to ISO format for consistent calendar lookup
+      const d = safeParseDate(e.date);
+      const key = isNaN(d) ? e.date : d.toISOString().slice(0,10);
+      if (!events[key]) events[key] = [];
+      events[key].push({ name: e.desc, amount: e.amount, label: e.category, type: 'expense', color: '#f76f6f' });
     });
 
     return events;
