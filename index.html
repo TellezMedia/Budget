@@ -995,7 +995,7 @@
   // CONFIGURATION — paste your Google OAuth Client ID here
   // ============================================================
   const CLIENT_ID = '803010094338-5deiv8s131d8m5qjr12pqt6kcod01msp.apps.googleusercontent.com';
-  const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
+  const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile';
   const SHEET_TITLE = 'Budget App Data';
   const BUDGET_SHEET_TITLE = 'Budget Plan Data';
 
@@ -1091,14 +1091,23 @@
   }
 
   async function onSignedIn() {
-    const profile = await fetchProfile();
-    const initials = (profile.name || 'U').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
-    document.getElementById('user-avatar').textContent = initials;
-    document.getElementById('user-name-display').textContent = profile.name || 'My Account';
-
+    // Switch to the app immediately. Everything after this is enhancement,
+    // not a requirement for being signed in, and must never be able to
+    // undo this screen switch or force a false "session expired" state.
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('app').style.flexDirection = 'column';
+
+    let profile = {};
+    try {
+      profile = await fetchProfile();
+    } catch (e) {
+      // Fetching your name/avatar is cosmetic. Never let it take down sign-in.
+      profile = {};
+    }
+    const initials = (profile.name || 'U').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+    document.getElementById('user-avatar').textContent = initials;
+    document.getElementById('user-name-display').textContent = profile.name || 'My Account';
 
     await ensureSheet();
     await ensureBudgetSheet();
