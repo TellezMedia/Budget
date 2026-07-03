@@ -880,6 +880,7 @@
               <th>Starting Balance</th>
               <th>Current Balance</th>
               <th>Last Updated</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="balances-tbody">
@@ -1429,7 +1430,17 @@
     userData.expenses     = expenses.map(r => ({ date: r[0], desc: r[1], category: r[2], account: r[3], amount: parseFloat(r[4]) || 0 }));
     userData.bills        = bills.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, day: r[2], account: r[3], freq: r[4] }));
     userData.scheduled    = scheduled.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, date: r[2], account: r[3], status: r[4] || 'Upcoming' }));
-    userData.balances     = balances.map(r => ({ account: r[0], startingBalance: parseFloat(r[1]) || 0, balance: parseFloat(r[2]) || 0, updated: r[3] }));
+    userData.balances     = balances.map(r => {
+      // Support both old 3-column schema (Account, Balance, LastUpdated)
+      // and new 4-column schema (Account, StartingBalance, CurrentBalance, LastUpdated)
+      const isNewSchema = r.length >= 4;
+      return {
+        account: r[0],
+        startingBalance: isNewSchema ? (parseFloat(r[1]) || 0) : (parseFloat(r[1]) || 0),
+        balance: isNewSchema ? (parseFloat(r[2]) || 0) : (parseFloat(r[1]) || 0),
+        updated: isNewSchema ? r[3] : r[2]
+      };
+    });
     userData.transactions = transactions.map(r => ({ date: r[0], type: r[1], desc: r[2], account: r[3], amount: parseFloat(r[4]) || 0 }));
     renderAll();
   }
@@ -1664,6 +1675,13 @@
     await deleteRow(TABS.scheduled, i);
     userData.scheduled.splice(i, 1);
     renderAll(); showToast('Payment removed.', 'success');
+  }
+
+  async function deleteAccount(i) {
+    if (!confirm('Remove this account? This will not affect your transaction history.')) return;
+    await deleteRow(TABS.balances, i);
+    userData.balances.splice(i, 1);
+    renderAll(); showToast('Account removed.', 'success');
   }
 
   async function markPaid(i) {
@@ -1973,15 +1991,16 @@
   function renderBalances() {
     const tbody = document.getElementById('balances-tbody');
     if (!userData.balances.length) {
-      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state">No accounts yet.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">No accounts yet.</div></td></tr>';
       return;
     }
-    tbody.innerHTML = userData.balances.map((b) => `
+    tbody.innerHTML = userData.balances.map((b, i) => `
       <tr>
         <td>${b.account}</td>
         <td class="mono" style="color:var(--muted)">${fmt(b.startingBalance || 0)}</td>
         <td class="mono" style="color:var(--accent2)">${fmt(b.balance)}</td>
         <td style="color:var(--muted)">${b.updated}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteAccount(${i})">Remove</button></td>
       </tr>
     `).join('');
   }
