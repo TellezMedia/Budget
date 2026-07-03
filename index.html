@@ -1453,7 +1453,7 @@
     const idx = userData.balances.findIndex(b => b.account.toLowerCase() === accountName.toLowerCase());
     if (idx < 0) return; // no matching account on file
     const newBal = userData.balances[idx].balance - amount;
-    const today = new Date().toLocaleDateString();
+    const today = todayISO();
     await updateCell(TABS.balances, idx, 1, newBal);
     await updateCell(TABS.balances, idx, 2, today);
     userData.balances[idx].balance = newBal;
@@ -1465,7 +1465,7 @@
     const idx = userData.balances.findIndex(b => b.account.toLowerCase() === accountName.toLowerCase());
     if (idx < 0) return;
     const newBal = userData.balances[idx].balance + amount;
-    const today = new Date().toLocaleDateString();
+    const today = todayISO();
     await updateCell(TABS.balances, idx, 1, newBal);
     await updateCell(TABS.balances, idx, 2, today);
     userData.balances[idx].balance = newBal;
@@ -1511,7 +1511,7 @@
   async function addBalance() {
     const acc = v('bal-account'), bal = parseFloat(v('bal-amount'));
     if (!acc || isNaN(bal)) { showToast('Fill in account and balance.', 'error'); return; }
-    const today = new Date().toLocaleDateString();
+    const today = todayISO();
     const existing = userData.balances.findIndex(b => b.account.toLowerCase() === acc.toLowerCase());
     if (existing >= 0) {
       // Update current balance only, preserve starting balance
@@ -1529,7 +1529,7 @@
   }
 
   async function logTransaction(type, desc, account, amount) {
-    const today = new Date().toLocaleDateString();
+    const today = todayISO();
     await appendRow(TABS.transactions, [today, type, desc, account, amount]);
     userData.transactions.unshift({ date: today, type, desc, account, amount });
   }
@@ -1587,7 +1587,7 @@
   async function fixBalance(account, correctedAmount) {
     const idx = userData.balances.findIndex(b => b.account.toLowerCase() === account.toLowerCase());
     if (idx < 0) return;
-    const today = new Date().toLocaleDateString();
+    const today = todayISO();
     await updateCell(TABS.balances, idx, 2, correctedAmount);
     await updateCell(TABS.balances, idx, 3, today);
     userData.balances[idx].balance = correctedAmount;
@@ -2033,9 +2033,18 @@
   function clear(id) { document.getElementById(id).value = ''; }
   function fmt(n) { return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
+  function todayISO() { return new Date().toISOString().slice(0,10); }
+
   function fmtDate(str) {
     if (!str) return '';
-    const d = new Date(str + 'T00:00:00');
+    // Handle both ISO (2026-07-02) and locale (7/2/2026) formats
+    let d;
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+      d = new Date(str + 'T00:00:00');
+    } else {
+      d = new Date(str);
+    }
+    if (isNaN(d.getTime())) return str;
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
