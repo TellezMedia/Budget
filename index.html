@@ -1020,6 +1020,8 @@
 
   let tokenClient;
   let accessToken = null;
+  let tokenExpiresAt = 0;   // epoch ms when the current token dies
+  let refreshInFlight = null; // prevents parallel silent-refresh attempts
   let sheetId = null;
   let budgetSheetId = null;
   let userData = { expenses: [], bills: [], scheduled: [], balances: [], transactions: [] };
@@ -1039,6 +1041,8 @@
       callback: async (resp) => {
         if (resp.error) { showToast('Sign-in failed: ' + resp.error, 'error'); return; }
         accessToken = resp.access_token;
+        // Google tokens last ~3600s. Track real expiry with a 60s safety buffer.
+        tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) * 1000) - 60000;
         await onSignedIn();
       }
     });
@@ -1050,12 +1054,14 @@
       document.getElementById('setup-hint').style.display = 'block';
       return;
     }
-    tokenClient.requestAccessToken({ prompt: 'consent' });
+    // prompt: '' lets Google skip the consent screen for returning users.
+    // Google still shows consent automatically on first-time grant.
+    tokenClient.requestAccessToken({ prompt: '' });
   }
 
   function signOut() {
     google.accounts.oauth2.revoke(accessToken, () => {});
-    accessToken = null; sheetId = null; budgetSheetId = null;
+    accessToken = null; tokenExpiresAt = 0; sheetId = null; budgetSheetId = null;
     userData = { expenses: [], bills: [], scheduled: [], balances: [], transactions: [] };
     budgetData = { targets: [] };
     document.getElementById('app').style.display = 'none';
@@ -1074,6 +1080,7 @@
 
     await ensureSheet();
     await ensureBudgetSheet();
+    await flushQueue();       // push anything that failed to sync last session
     await loadAllData();
     await loadBudgetData();
     renderDashboard();
@@ -1087,11 +1094,75 @@
     return r.ok ? await r.json() : {};
   }
 
+  // ---- Token lifecycle ----
+
+  function isTokenValid() {
+    return !!accessToken && Date.now() < tokenExpiresAt;
+  }
+
+  // Silently refreshes the token if expired. Resolves when a valid token exists.
+  // Rejects only if Google cannot re-auth without user interaction.
+  function ensureToken() {
+    if (isTokenValid()) return Promise.resolve();
+    if (refreshInFlight) return refreshInFlight;
+    refreshInFlight = new Promise((resolve, reject) => {
+      const originalCallback = tokenClient.callback;
+      tokenClient.callback = async (resp) => {
+        tokenClient.callback = originalCallback;
+        refreshInFlight = null;
+        if (resp.error) { reject(new Error(resp.error)); return; }
+        accessToken = resp.access_token;
+        tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) * 1000) - 60000;
+        resolve();
+      };
+      try {
+        // prompt: '' = no popup if the Google session is still alive
+        tokenClient.requestAccessToken({ prompt: '' });
+      } catch (e) {
+        tokenClient.callback = originalCallback;
+        refreshInFlight = null;
+        reject(e);
+      }
+    });
+    return refreshInFlight;
+  }
+
+  function handleSessionExpired() {
+    accessToken = null;
+    tokenExpiresAt = 0;
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+    showToast('Your Google session expired. Sign in again to keep syncing.', 'error');
+  }
+
   // ---- Google Sheets helpers ----
 
-  function gFetch(url, opts = {}) {
+  async function gFetch(url, opts = {}) {
+    try {
+      await ensureToken();
+    } catch (e) {
+      handleSessionExpired();
+      throw new Error('SESSION_EXPIRED');
+    }
     opts.headers = { ...(opts.headers || {}), Authorization: 'Bearer ' + accessToken };
-    return fetch(url, opts);
+    let res = await fetch(url, opts);
+    if (res.status === 401) {
+      // Token was revoked or died early. Force one silent refresh and retry once.
+      tokenExpiresAt = 0;
+      try {
+        await ensureToken();
+      } catch (e) {
+        handleSessionExpired();
+        throw new Error('SESSION_EXPIRED');
+      }
+      opts.headers = { ...(opts.headers || {}), Authorization: 'Bearer ' + accessToken };
+      res = await fetch(url, opts);
+      if (res.status === 401) {
+        handleSessionExpired();
+        throw new Error('SESSION_EXPIRED');
+      }
+    }
+    return res;
   }
 
   async function ensureSheet() {
@@ -1387,8 +1458,76 @@
     });
   }
 
-  async function appendRow(tab, row) {
-    await gFetch(
+  // ---- Offline / failed-write queue ----
+  // Writes that fail (dead session, no signal in a store, API hiccup) are queued
+  // in localStorage and flushed automatically after the next successful auth.
+
+  const QUEUE_KEY = 'budget_pending_writes';
+
+  function getQueue() {
+    try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); }
+    catch { return []; }
+  }
+
+  function setQueue(q) {
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+    updateSyncBanner();
+  }
+
+  function queueWrite(item) {
+    const q = getQueue();
+    q.push(item);
+    setQueue(q);
+  }
+
+  function updateSyncBanner() {
+    let banner = document.getElementById('sync-banner');
+    const count = getQueue().length;
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'sync-banner';
+      banner.style.cssText = 'display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--warn);color:#1a1a1a;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.3);cursor:pointer;';
+      banner.onclick = () => flushQueue();
+      document.body.appendChild(banner);
+    }
+    if (count > 0) {
+      banner.textContent = count + (count === 1 ? ' entry' : ' entries') + ' waiting to sync. Tap to retry.';
+      banner.style.display = 'block';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+
+  let flushing = false;
+  async function flushQueue() {
+    if (flushing) return;
+    const q = getQueue();
+    if (!q.length || !sheetId) { updateSyncBanner(); return; }
+    flushing = true;
+    try {
+      while (getQueue().length) {
+        const item = getQueue()[0];
+        if (item.kind === 'append') {
+          await rawAppend(item.tab, item.row);
+        } else if (item.kind === 'update') {
+          await rawUpdateCell(item.tab, item.rowIndex, item.colIndex, item.value);
+        }
+        // Remove only after confirmed success
+        const rest = getQueue().slice(1);
+        setQueue(rest);
+      }
+      showToast('All pending entries synced to your sheet.', 'success');
+    } catch (e) {
+      // Leave remaining items queued. Banner stays visible.
+    } finally {
+      flushing = false;
+      updateSyncBanner();
+    }
+  }
+
+  // Raw write, throws on any failure
+  async function rawAppend(tab, row) {
+    const res = await gFetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
       {
         method: 'POST',
@@ -1396,6 +1535,20 @@
         body: JSON.stringify({ values: [row] })
       }
     );
+    if (!res.ok) throw new Error('Append failed: ' + res.status);
+    return res;
+  }
+
+  // Public append: succeeds, or queues the write and warns. Never lies.
+  async function appendRow(tab, row) {
+    try {
+      await rawAppend(tab, row);
+      return true;
+    } catch (e) {
+      queueWrite({ kind: 'append', tab, row });
+      showToast('Not synced to your sheet yet. Saved locally and will retry.', 'error');
+      return false;
+    }
   }
 
   async function readSheet(tab) {
@@ -1424,10 +1577,10 @@
     });
   }
 
-  async function updateCell(tab, rowIndex, colIndex, value) {
+  async function rawUpdateCell(tab, rowIndex, colIndex, value) {
     const col = String.fromCharCode(65 + colIndex);
     const row = rowIndex + 2; // +1 header +1 1-based
-    await gFetch(
+    const res = await gFetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}!${col}${row}?valueInputOption=RAW`,
       {
         method: 'PUT',
@@ -1435,6 +1588,19 @@
         body: JSON.stringify({ values: [[value]] })
       }
     );
+    if (!res.ok) throw new Error('Update failed: ' + res.status);
+    return res;
+  }
+
+  async function updateCell(tab, rowIndex, colIndex, value) {
+    try {
+      await rawUpdateCell(tab, rowIndex, colIndex, value);
+      return true;
+    } catch (e) {
+      queueWrite({ kind: 'update', tab, rowIndex, colIndex, value });
+      showToast('Not synced to your sheet yet. Saved locally and will retry.', 'error');
+      return false;
+    }
   }
 
   function openSheetUrl() {
@@ -1503,14 +1669,15 @@
       if (custom) cat = custom;
     }
     if (!d || !desc || !amt) { showToast('Fill in date, description, and amount.', 'error'); return; }
-    await appendRow(TABS.expenses, [d, desc, cat, acc, amt]);
+    const synced = await appendRow(TABS.expenses, [d, desc, cat, acc, amt]);
     userData.expenses.unshift({ date: d, desc, category: cat, account: acc, amount: amt });
     await logTransaction('Expense', desc, acc, amt);
     await deductFromBalance(acc, amt);
     clear('exp-desc'); clear('exp-amount');
     const customInput = document.getElementById('exp-custom-category');
     if (customInput) customInput.value = '';
-    renderAll(); showToast('Expense saved and deducted from ' + acc + '.', 'success');
+    renderAll();
+    if (synced) showToast('Expense saved and deducted from ' + acc + '.', 'success');
   }
 
   async function addBill() {
@@ -2180,7 +2347,24 @@
   }
 
   // ---- Init ----
-  window.onload = () => { applyStoredTheme(); initGoogle(); };
+  window.onload = () => { applyStoredTheme(); initGoogle(); updateSyncBanner(); };
+
+  // Catches the "opened the tab the next morning" case. The moment the tab
+  // becomes visible with a dead token, silently refresh before the user
+  // touches anything. If silent refresh fails, show the real auth screen
+  // instead of pretending to be signed in.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    const appVisible = document.getElementById('app').style.display !== 'none';
+    if (appVisible && !isTokenValid()) {
+      ensureToken().then(flushQueue).catch(handleSessionExpired);
+    }
+  });
+
+  // Retry queued writes as soon as connectivity returns
+  window.addEventListener('online', () => {
+    if (isTokenValid()) flushQueue();
+  });
 </script>
 
 <!-- Google Identity Services -->
