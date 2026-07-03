@@ -1022,6 +1022,7 @@
   let accessToken = null;
   let tokenExpiresAt = 0;   // epoch ms when the current token dies
   let refreshInFlight = null; // prevents parallel silent-refresh attempts
+  let authInFlight = false;   // prevents double-clicking Sign In from firing two flows
   let sheetId = null;
   let budgetSheetId = null;
   let userData = { expenses: [], bills: [], scheduled: [], balances: [], transactions: [] };
@@ -1054,9 +1055,30 @@
       document.getElementById('setup-hint').style.display = 'block';
       return;
     }
-    // prompt: '' lets Google skip the consent screen for returning users.
-    // Google still shows consent automatically on first-time grant.
-    tokenClient.requestAccessToken({ prompt: '' });
+    if (authInFlight) return;
+    authInFlight = true;
+    // This is a user-initiated sign in, not a background refresh. It must be
+    // allowed to show the account picker and consent screen, because at this
+    // point there may be no active Google grant to silently reuse. Using
+    // prompt: '' here was the bug: it demanded a token with no UI, found
+    // nothing to approve silently, and the app read that as a session
+    // expiring when the person was never signed in yet.
+    const originalCallback = tokenClient.callback;
+    tokenClient.callback = async (resp) => {
+      tokenClient.callback = originalCallback;
+      authInFlight = false;
+      if (resp.error) { showToast('Sign-in failed: ' + resp.error, 'error'); return; }
+      accessToken = resp.access_token;
+      tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) * 1000) - 60000;
+      await onSignedIn();
+    };
+    try {
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+    } catch (e) {
+      tokenClient.callback = originalCallback;
+      authInFlight = false;
+      showToast('Sign-in failed to start. Please try again.', 'error');
+    }
   }
 
   function signOut() {
@@ -1101,13 +1123,26 @@
   }
 
   // Silently refreshes the token if expired. Resolves when a valid token exists.
-  // Rejects only if Google cannot re-auth without user interaction.
+  // Rejects if Google cannot re-auth without user interaction, or if nothing
+  // comes back within 8 seconds (blocked popup, closed tab, dead network).
   function ensureToken() {
     if (isTokenValid()) return Promise.resolve();
+    if (authInFlight) return Promise.reject(new Error('sign-in already in progress'));
     if (refreshInFlight) return refreshInFlight;
     refreshInFlight = new Promise((resolve, reject) => {
+      let settled = false;
       const originalCallback = tokenClient.callback;
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        tokenClient.callback = originalCallback;
+        refreshInFlight = null;
+        reject(new Error('silent refresh timed out'));
+      }, 8000);
       tokenClient.callback = async (resp) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
         tokenClient.callback = originalCallback;
         refreshInFlight = null;
         if (resp.error) { reject(new Error(resp.error)); return; }
@@ -1116,9 +1151,13 @@
         resolve();
       };
       try {
-        // prompt: '' = no popup if the Google session is still alive
+        // prompt: '' = no popup if the Google session is still alive. This is
+        // safe here because ensureToken only ever runs for a session that was
+        // already established, unlike the button-driven signIn() above.
         tokenClient.requestAccessToken({ prompt: '' });
       } catch (e) {
+        clearTimeout(timer);
+        settled = true;
         tokenClient.callback = originalCallback;
         refreshInFlight = null;
         reject(e);
