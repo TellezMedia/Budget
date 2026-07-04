@@ -563,7 +563,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <div class="header-brand">Budget</div>
+    <div class="header-brand">Budget <span id="app-version" style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v2.5</span></div>
     <div style="display:flex;align-items:center;margin-left:auto;">
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">&#9790; Dark</button>
       <div class="header-user" onclick="toggleUserMenu()">
@@ -582,6 +582,7 @@
     <div class="nav-tab" onclick="showScreen('expenses', this)">Expenses</div>
     <div class="nav-tab" onclick="showScreen('bills', this)">Bills</div>
     <div class="nav-tab" onclick="showScreen('scheduled', this)">Scheduled</div>
+    <div class="nav-tab" onclick="showScreen('transactions', this)">Transactions</div>
     <div class="nav-tab" onclick="showScreen('balances', this)">Accounts</div>
     <div class="nav-tab" onclick="showScreen('budget', this)">Budget</div>
   </nav>
@@ -611,10 +612,10 @@
         </div>
       </div>
 
-      <div class="section-title">Recent expenses</div>
+      <div class="section-title">Recent transactions</div>
       <div class="upcoming-list">
         <div id="recent-expenses-body">
-          <div class="empty-state">No expenses logged yet.</div>
+          <div class="empty-state">No transactions logged yet.</div>
         </div>
       </div>
 
@@ -830,26 +831,6 @@
         <button class="btn btn-primary" onclick="addBalance()">Set balance</button>
       </div>
 
-      <div class="form-card">
-        <div class="form-title">Log a deposit</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Description</label>
-            <input type="text" id="dep-desc" placeholder="Paycheck, transfer..." />
-          </div>
-          <div class="form-group">
-            <label>Amount</label>
-            <input type="number" id="dep-amount" placeholder="0.00" step="0.01" />
-          </div>
-          <div class="form-group">
-            <label>Account</label>
-            <select id="dep-account" class="account-select" data-extra="Cash">
-            </select>
-          </div>
-        </div>
-        <button class="btn btn-primary" onclick="addDeposit()">Log deposit</button>
-      </div>
-
       <div class="data-table" style="margin-bottom:24px;">
         <table>
           <thead>
@@ -877,6 +858,29 @@
           <button class="btn btn-secondary" onclick="balanceTransactionsCheck()">Run check</button>
         </div>
         <div id="balance-check-results"><div class="empty-state" style="padding:16px 0;">Click Run check to verify your balances.</div></div>
+      </div>
+    </div>
+
+    <!-- TRANSACTIONS -->
+    <div id="screen-transactions" class="screen">
+      <div class="form-card">
+        <div class="form-title">Log a deposit</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Description</label>
+            <input type="text" id="dep-desc" placeholder="Paycheck, transfer..." />
+          </div>
+          <div class="form-group">
+            <label>Amount</label>
+            <input type="number" id="dep-amount" placeholder="0.00" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>Account</label>
+            <select id="dep-account" class="account-select" data-extra="Cash">
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="addDeposit()">Log deposit</button>
       </div>
 
       <div class="section-title">Transaction history</div>
@@ -997,6 +1001,7 @@
 
   const PIE_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c','#4ade80','#e879f9'];
   const ACCOUNT_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c'];
+  const APP_VERSION = 'v2.5';
 
   let tokenClient;
   let accessToken = null;
@@ -2044,23 +2049,26 @@
       `).join('');
     }
 
-    // Recent expenses
-    const recent = [...userData.expenses]
+    // Recent transactions (expenses and deposits together)
+    const recentTx = [...(userData.transactions || [])]
       .sort((a, b) => (safeParseDate(b.date) || 0) - (safeParseDate(a.date) || 0))
       .slice(0, 5);
     const reEl = document.getElementById('recent-expenses-body');
-    if (!recent.length) {
-      reEl.innerHTML = '<div class="empty-state">No expenses logged yet.</div>';
+    if (!recentTx.length) {
+      reEl.innerHTML = '<div class="empty-state">No transactions logged yet.</div>';
     } else {
-      reEl.innerHTML = recent.map(e => `
+      reEl.innerHTML = recentTx.map(t => {
+        const isDeposit = t.type === 'Deposit';
+        return `
         <div class="list-row">
           <div class="list-row-left">
-            <div class="list-row-name">${e.desc}</div>
-            <div class="list-row-date">${fmtDate(e.date)} · ${e.category} · ${e.account}</div>
+            <div class="list-row-name">${t.desc}</div>
+            <div class="list-row-date">${fmtDate(t.date)} · ${t.type} · ${t.account}</div>
           </div>
-          <div class="list-row-amount red">${fmt(e.amount)}</div>
+          <div class="list-row-amount ${isDeposit ? 'green' : 'red'}">${isDeposit ? '+' : '-'}${fmt(t.amount)}</div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     // Calendar
@@ -2276,19 +2284,22 @@
     }
     const used = usedAccountColors();
     tbody.innerHTML = userData.balances.map((b, i) => {
-      const swatchOptions = ACCOUNT_COLORS
-        .filter(c => c === b.color || !used.has(c))
-        .map(c => `<option value="${c}" ${c === b.color ? 'selected' : ''}>${c}</option>`)
-        .join('');
+      const swatches = ACCOUNT_COLORS.map(c => {
+        const isCurrent = c === b.color;
+        const isTaken = used.has(c) && !isCurrent;
+        const ring = isCurrent ? '0 0 0 2px var(--bg), 0 0 0 4px ' + c : 'none';
+        const cursor = isTaken ? 'not-allowed' : 'pointer';
+        const opacity = isTaken ? '0.25' : '1';
+        const click = isTaken ? '' : `onclick="setAccountColor(${i}, '${c}')"`;
+        const title = isTaken ? 'Already used by another account' : c;
+        return `<span ${click} title="${title}" style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${c};cursor:${cursor};opacity:${opacity};box-shadow:${ring};"></span>`;
+      }).join('');
       return `
       <tr>
         <td style="color:${b.color || 'inherit'};font-weight:600;">${b.account}</td>
         <td>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span style="display:inline-block;width:16px;height:16px;border-radius:50%;background:${b.color || '#888'};border:1px solid var(--border);"></span>
-            <select onchange="setAccountColor(${i}, this.value)" style="width:auto;padding:4px 8px;font-size:12px;">
-              ${swatchOptions}
-            </select>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:220px;">
+            ${swatches}
           </div>
         </td>
         <td class="mono" style="color:var(--muted)">${fmt(b.startingBalance || 0)}</td>
@@ -2448,7 +2459,7 @@
   }
 
   // ---- Init ----
-  window.onload = () => { applyStoredTheme(); initGoogle(); updateSyncBanner(); };
+  window.onload = () => { applyStoredTheme(); initGoogle(); updateSyncBanner(); document.getElementById('app-version').textContent = APP_VERSION; };
 
   // Catches the "opened the tab the next morning" case. The moment the tab
   // becomes visible with a dead token, silently refresh before the user
