@@ -310,6 +310,7 @@
     .list-row-amount { font-family: var(--mono); font-size: 14px; }
     .list-row-amount.red { color: var(--danger); }
     .list-row-amount.green { color: var(--accent2); }
+    .list-row-amount.muted { color: var(--muted); }
 
     .badge {
       display: inline-flex;
@@ -691,7 +692,8 @@
             </select>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="addExpense()">Save expense</button>
+        <button class="btn btn-primary" id="exp-submit-btn" onclick="saveExpense()">Save expense</button>
+        <button class="btn btn-secondary" id="exp-cancel-btn" onclick="cancelEditExpense()" style="display:none;">Cancel edit</button>
       </div>
 
       <div class="data-table">
@@ -745,7 +747,8 @@
             </select>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="addBill()">Save bill</button>
+        <button class="btn btn-primary" id="bill-submit-btn" onclick="saveBill()">Save bill</button>
+        <button class="btn btn-secondary" id="bill-cancel-btn" onclick="cancelEditBill()" style="display:none;">Cancel edit</button>
       </div>
 
       <div class="data-table">
@@ -791,7 +794,8 @@
             </select>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="addScheduled()">Save payment</button>
+        <button class="btn btn-primary" id="sched-submit-btn" onclick="saveScheduled()">Save payment</button>
+        <button class="btn btn-secondary" id="sched-cancel-btn" onclick="cancelEditScheduled()" style="display:none;">Cancel edit</button>
       </div>
 
       <div class="data-table">
@@ -839,12 +843,13 @@
               <th>Color</th>
               <th>Starting Balance</th>
               <th>Current Balance</th>
+              <th>Alert Below</th>
               <th>Last Updated</th>
               <th></th>
             </tr>
           </thead>
           <tbody id="balances-tbody">
-            <tr><td colspan="6"><div class="empty-state">No accounts yet.</div></td></tr>
+            <tr><td colspan="7"><div class="empty-state">No accounts yet.</div></td></tr>
           </tbody>
         </table>
       </div>
@@ -881,6 +886,32 @@
           </div>
         </div>
         <button class="btn btn-primary" onclick="addDeposit()">Log deposit</button>
+      </div>
+
+      <div class="form-card">
+        <div class="form-title">Move money between accounts</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:16px;margin-top:-8px;">Transfers move money between your own accounts. They never count as spending and never appear in your Budget totals.</p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>From</label>
+            <select id="xfer-from" class="account-select" data-extra="">
+            </select>
+          </div>
+          <div class="form-group">
+            <label>To</label>
+            <select id="xfer-to" class="account-select" data-extra="">
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Amount</label>
+            <input type="number" id="xfer-amount" placeholder="0.00" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>Description (optional)</label>
+            <input type="text" id="xfer-desc" placeholder="Move to savings..." />
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="transferMoney()">Move money</button>
       </div>
 
       <div class="section-title">Transaction history</div>
@@ -1001,7 +1032,7 @@
 
   const PIE_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c','#4ade80','#e879f9'];
   const ACCOUNT_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c'];
-  const APP_VERSION = 'v2.5';
+  const APP_VERSION = 'v2.5.2';
 
   let tokenClient;
   let accessToken = null;
@@ -1465,7 +1496,7 @@
     [TABS.expenses]:     [['Date','Description','Category','Account','Amount']],
     [TABS.bills]:        [['Name','Amount','DueDay','Account','Frequency']],
     [TABS.scheduled]:    [['Name','Amount','DueDate','Account','Status']],
-    [TABS.balances]:     [['Account','StartingBalance','CurrentBalance','LastUpdated','Color']],
+    [TABS.balances]:     [['Account','StartingBalance','CurrentBalance','LastUpdated','Color','LowBalanceThreshold']],
     [TABS.transactions]: [['Date','Type','Description','Account','Amount']]
   };
 
@@ -1662,7 +1693,8 @@
         startingBalance: isNewSchema ? (parseFloat(r[1]) || 0) : (parseFloat(r[1]) || 0),
         balance: isNewSchema ? (parseFloat(r[2]) || 0) : (parseFloat(r[1]) || 0),
         updated: isNewSchema ? r[3] : r[2],
-        color: (isNewSchema && r[4]) ? r[4] : null
+        color: (isNewSchema && r[4]) ? r[4] : null,
+        lowBalanceThreshold: (r[5] !== undefined && r[5] !== '') ? (parseFloat(r[5]) || 0) : 100
       };
     });
     await ensureAccountColors();
@@ -1703,6 +1735,18 @@
     renderAll();
   }
 
+  async function setAccountThreshold(index, value) {
+    const threshold = parseFloat(value);
+    if (isNaN(threshold) || threshold < 0) {
+      showToast('Enter a valid low balance amount.', 'error');
+      renderBalances();
+      return;
+    }
+    userData.balances[index].lowBalanceThreshold = threshold;
+    await updateCell(TABS.balances, index, 5, threshold); // LowBalanceThreshold column
+    renderAll();
+  }
+
   async function deductFromBalance(accountName, amount) {
     if (!accountName || !amount) return;
     const idx = userData.balances.findIndex(b => b.account.toLowerCase() === accountName.toLowerCase());
@@ -1727,7 +1771,9 @@
     userData.balances[idx].updated = today;
   }
 
-  async function addExpense() {
+  let editingExpenseIndex = null;
+
+  async function saveExpense() {
     const d = v('exp-date'), desc = v('exp-desc'), amt = parseFloat(v('exp-amount')), acc = v('exp-account');
     let cat = v('exp-category');
     if (cat === 'Other') {
@@ -1735,6 +1781,27 @@
       if (custom) cat = custom;
     }
     if (!d || !desc || !amt) { showToast('Fill in date, description, and amount.', 'error'); return; }
+
+    if (editingExpenseIndex !== null) {
+      const i = editingExpenseIndex;
+      const old = userData.expenses[i];
+      // Reverse the old amount's effect on its original account, then apply
+      // the new amount to whichever account is now selected. Handles both
+      // an amount change and an account change in one pass.
+      await addToBalance(old.account, old.amount);
+      await deductFromBalance(acc, amt);
+      await updateCell(TABS.expenses, i, 0, d);
+      await updateCell(TABS.expenses, i, 1, desc);
+      await updateCell(TABS.expenses, i, 2, cat);
+      await updateCell(TABS.expenses, i, 3, acc);
+      await updateCell(TABS.expenses, i, 4, amt);
+      userData.expenses[i] = { ...old, date: d, desc, category: cat, account: acc, amount: amt };
+      cancelEditExpense();
+      renderAll();
+      showToast('Expense updated.', 'success');
+      return;
+    }
+
     const synced = await appendRow(TABS.expenses, [d, desc, cat, acc, amt]);
     userData.expenses.unshift({ date: d, desc, category: cat, account: acc, amount: amt, _seq: Date.now() });
     await logTransaction('Expense', desc, acc, amt);
@@ -1746,22 +1813,125 @@
     if (synced) showToast('Expense saved and deducted from ' + acc + '.', 'success');
   }
 
-  async function addBill() {
+  function editExpense(i) {
+    const e = userData.expenses[i];
+    editingExpenseIndex = i;
+    document.getElementById('exp-date').value = e.date;
+    document.getElementById('exp-desc').value = e.desc;
+    document.getElementById('exp-amount').value = e.amount;
+    document.getElementById('exp-account').value = e.account;
+    const catSelect = document.getElementById('exp-category');
+    const knownCategory = [...catSelect.options].some(o => o.value === e.category);
+    if (knownCategory) {
+      catSelect.value = e.category;
+    } else {
+      catSelect.value = 'Other';
+      document.getElementById('exp-custom-category').value = e.category;
+    }
+    toggleCustomCat();
+    document.getElementById('exp-submit-btn').textContent = 'Update expense';
+    document.getElementById('exp-cancel-btn').style.display = 'inline-block';
+    document.getElementById('exp-desc').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function cancelEditExpense() {
+    editingExpenseIndex = null;
+    clear('exp-date'); clear('exp-desc'); clear('exp-amount');
+    const customInput = document.getElementById('exp-custom-category');
+    if (customInput) customInput.value = '';
+    document.getElementById('exp-submit-btn').textContent = 'Save expense';
+    document.getElementById('exp-cancel-btn').style.display = 'none';
+  }
+
+  let editingBillIndex = null;
+
+  async function saveBill() {
     const name = v('bill-name'), amt = parseFloat(v('bill-amount')), day = v('bill-day'), acc = v('bill-account'), freq = v('bill-freq');
     if (!name || !amt || !day) { showToast('Fill in name, amount, and due day.', 'error'); return; }
+
+    if (editingBillIndex !== null) {
+      const i = editingBillIndex;
+      await updateCell(TABS.bills, i, 0, name);
+      await updateCell(TABS.bills, i, 1, amt);
+      await updateCell(TABS.bills, i, 2, day);
+      await updateCell(TABS.bills, i, 3, acc);
+      await updateCell(TABS.bills, i, 4, freq);
+      userData.bills[i] = { name, amount: amt, day, account: acc, freq };
+      cancelEditBill();
+      renderAll();
+      showToast('Bill updated.', 'success');
+      return;
+    }
+
     await appendRow(TABS.bills, [name, amt, day, acc, freq]);
     userData.bills.push({ name, amount: amt, day, account: acc, freq });
     clear('bill-name'); clear('bill-amount'); clear('bill-day');
     renderAll(); showToast('Bill saved.', 'success');
   }
 
-  async function addScheduled() {
+  function editBill(i) {
+    const b = userData.bills[i];
+    editingBillIndex = i;
+    document.getElementById('bill-name').value = b.name;
+    document.getElementById('bill-amount').value = b.amount;
+    document.getElementById('bill-day').value = b.day;
+    document.getElementById('bill-account').value = b.account;
+    document.getElementById('bill-freq').value = b.freq;
+    document.getElementById('bill-submit-btn').textContent = 'Update bill';
+    document.getElementById('bill-cancel-btn').style.display = 'inline-block';
+    document.getElementById('bill-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function cancelEditBill() {
+    editingBillIndex = null;
+    clear('bill-name'); clear('bill-amount'); clear('bill-day');
+    document.getElementById('bill-submit-btn').textContent = 'Save bill';
+    document.getElementById('bill-cancel-btn').style.display = 'none';
+  }
+
+  let editingScheduledIndex = null;
+
+  async function saveScheduled() {
     const name = v('sched-name'), amt = parseFloat(v('sched-amount')), date = v('sched-date'), acc = v('sched-account');
     if (!name || !amt || !date) { showToast('Fill in name, amount, and due date.', 'error'); return; }
+
+    if (editingScheduledIndex !== null) {
+      const i = editingScheduledIndex;
+      const old = userData.scheduled[i];
+      await updateCell(TABS.scheduled, i, 0, name);
+      await updateCell(TABS.scheduled, i, 1, amt);
+      await updateCell(TABS.scheduled, i, 2, date);
+      await updateCell(TABS.scheduled, i, 3, acc);
+      userData.scheduled[i] = { ...old, name, amount: amt, date, account: acc };
+      cancelEditScheduled();
+      renderAll();
+      showToast('Payment updated.', 'success');
+      return;
+    }
+
     await appendRow(TABS.scheduled, [name, amt, date, acc, 'Upcoming']);
     userData.scheduled.push({ name, amount: amt, date, account: acc, status: 'Upcoming' });
     clear('sched-name'); clear('sched-amount'); clear('sched-date');
     renderAll(); showToast('Payment saved.', 'success');
+  }
+
+  function editScheduled(i) {
+    const p = userData.scheduled[i];
+    editingScheduledIndex = i;
+    document.getElementById('sched-name').value = p.name;
+    document.getElementById('sched-amount').value = p.amount;
+    document.getElementById('sched-date').value = p.date;
+    document.getElementById('sched-account').value = p.account;
+    document.getElementById('sched-submit-btn').textContent = 'Update payment';
+    document.getElementById('sched-cancel-btn').style.display = 'inline-block';
+    document.getElementById('sched-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function cancelEditScheduled() {
+    editingScheduledIndex = null;
+    clear('sched-name'); clear('sched-amount'); clear('sched-date');
+    document.getElementById('sched-submit-btn').textContent = 'Save payment';
+    document.getElementById('sched-cancel-btn').style.display = 'none';
   }
 
   async function addBalance() {
@@ -1778,8 +1948,9 @@
     } else {
       // New account: starting balance = current balance, assign an unused color
       const color = nextAvailableColor();
-      await appendRow(TABS.balances, [acc, bal, bal, today, color]);
-      userData.balances.push({ account: acc, startingBalance: bal, balance: bal, updated: today, color });
+      const threshold = 100;
+      await appendRow(TABS.balances, [acc, bal, bal, today, color, threshold]);
+      userData.balances.push({ account: acc, startingBalance: bal, balance: bal, updated: today, color, lowBalanceThreshold: threshold });
     }
     clear('bal-account'); clear('bal-amount');
     renderAll(); showToast('Starting balance set for ' + acc + '.', 'success');
@@ -1800,6 +1971,24 @@
     renderAll(); showToast('Deposit of ' + fmt(amt) + ' added to ' + acc + '.', 'success');
   }
 
+  async function transferMoney() {
+    const from = v('xfer-from'), to = v('xfer-to'), amt = parseFloat(v('xfer-amount'));
+    let desc = v('xfer-desc').trim();
+    if (!from || !to || !amt) { showToast('Fill in from, to, and amount.', 'error'); return; }
+    if (from === to) { showToast('Pick two different accounts to move money between.', 'error'); return; }
+    if (!desc) desc = 'Transfer between ' + from + ' and ' + to;
+    // Logged as two linked entries, one per account, so per-account math
+    // (Balance Transactions check) and filtering stay correct. Neither
+    // "Transfer Out" nor "Transfer In" ever lands in the Expenses sheet,
+    // so transfers never count toward This Month Spent or Budget totals.
+    await logTransaction('Transfer Out', desc, from, amt);
+    await logTransaction('Transfer In', desc, to, amt);
+    await deductFromBalance(from, amt);
+    await addToBalance(to, amt);
+    clear('xfer-desc'); clear('xfer-amount');
+    renderAll(); showToast(fmt(amt) + ' moved from ' + from + ' to ' + to + '.', 'success');
+  }
+
   async function balanceTransactionsCheck() {
     const results = [];
     for (const bal of userData.balances) {
@@ -1810,10 +1999,16 @@
       const deposits = userData.transactions
         .filter(t => t.type === 'Deposit' && t.account.toLowerCase() === bal.account.toLowerCase())
         .reduce((s, t) => s + t.amount, 0);
-      const expected = start - expenses + deposits;
+      const transfersOut = userData.transactions
+        .filter(t => t.type === 'Transfer Out' && t.account.toLowerCase() === bal.account.toLowerCase())
+        .reduce((s, t) => s + t.amount, 0);
+      const transfersIn = userData.transactions
+        .filter(t => t.type === 'Transfer In' && t.account.toLowerCase() === bal.account.toLowerCase())
+        .reduce((s, t) => s + t.amount, 0);
+      const expected = start - expenses + deposits - transfersOut + transfersIn;
       const current = bal.balance;
       const diff = Math.abs(expected - current);
-      results.push({ account: bal.account, start, expenses, deposits, expected, current, diff, ok: diff < 0.02 });
+      results.push({ account: bal.account, start, expenses, deposits, transfersOut, transfersIn, expected, current, diff, ok: diff < 0.02 });
     }
 
     const el = document.getElementById('balance-check-results');
@@ -1833,6 +2028,8 @@
           <div>Starting balance: <span style="color:var(--text);">${fmt(r.start)}</span></div>
           <div>Total deposits: <span style="color:var(--accent2);">+${fmt(r.deposits)}</span></div>
           <div>Total expenses: <span style="color:var(--danger);">-${fmt(r.expenses)}</span></div>
+          <div>Transfers in: <span style="color:var(--accent2);">+${fmt(r.transfersIn)}</span></div>
+          <div>Transfers out: <span style="color:var(--muted);">-${fmt(r.transfersOut)}</span></div>
           <div>Expected balance: <span style="color:var(--text);">${fmt(r.expected)}</span></div>
           <div>App balance: <span style="color:var(--text);">${fmt(r.current)}</span></div>
           ${!r.ok ? `<div><button class="btn btn-primary btn-sm" onclick="fixBalance('${r.account}', ${r.expected})">Correct to ${fmt(r.expected)}</button></div>` : ''}
@@ -1991,13 +2188,17 @@
 
     // Balances: one card per real account, not just two fixed names
     const cardsContainer = document.getElementById('account-cards-container');
-    cardsContainer.innerHTML = userData.balances.map(b => `
+    cardsContainer.innerHTML = userData.balances.map(b => {
+      const threshold = b.lowBalanceThreshold ?? 100;
+      const isLow = b.balance < threshold;
+      return `
       <div class="card">
         <div class="card-label" style="color:${b.color || 'inherit'};">${b.account}</div>
-        <div class="card-value green">${fmt(b.balance)}</div>
-        <div class="card-sub">Current balance</div>
+        <div class="card-value ${isLow ? 'warn' : 'green'}">${fmt(b.balance)}</div>
+        <div class="card-sub">${isLow ? 'Below ' + fmt(threshold) + ' alert' : 'Current balance'}</div>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     // Total balance: sum of every account, however many there are
     const total = userData.balances.reduce((s, b) => s + b.balance, 0);
@@ -2059,13 +2260,18 @@
     } else {
       reEl.innerHTML = recentTx.map(t => {
         const isDeposit = t.type === 'Deposit';
+        const isTransferOut = t.type === 'Transfer Out';
+        const isTransferIn = t.type === 'Transfer In';
+        const isTransfer = isTransferOut || isTransferIn;
+        const amountClass = isDeposit ? 'green' : isTransfer ? 'muted' : 'red';
+        const amountPrefix = (isDeposit || isTransferIn) ? '+' : '-';
         return `
         <div class="list-row">
           <div class="list-row-left">
             <div class="list-row-name">${t.desc}</div>
             <div class="list-row-date">${fmtDate(t.date)} · ${t.type} · ${t.account}</div>
           </div>
-          <div class="list-row-amount ${isDeposit ? 'green' : 'red'}">${isDeposit ? '+' : '-'}${fmt(t.amount)}</div>
+          <div class="list-row-amount ${amountClass}">${amountPrefix}${fmt(t.amount)}</div>
         </div>
       `;
       }).join('');
@@ -2184,7 +2390,7 @@
         <td>${e.category}</td>
         <td>${e.account}</td>
         <td class="mono">${fmt(e.amount)}</td>
-        <td><button class="btn btn-danger btn-sm" onclick="deleteExpense(${i})">Remove</button></td>
+        <td><button class="btn btn-secondary btn-sm" onclick="editExpense(${i})">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteExpense(${i})">Remove</button></td>
       </tr>
     `).join('');
   }
@@ -2243,6 +2449,7 @@
           <td>${badge}</td>
           <td style="display:flex;gap:6px;">
             <button class="btn ${btnClass} btn-sm" onclick="markBillPaid(${i})">${btnLabel}</button>
+            <button class="btn btn-secondary btn-sm" onclick="editBill(${i})">Edit</button>
             <button class="btn btn-danger btn-sm" onclick="deleteBill(${i})">Remove</button>
           </td>
         </tr>
@@ -2269,6 +2476,7 @@
           <td><span class="badge ${badge}">${badgeLabel}</span></td>
           <td style="display:flex;gap:6px;">
             ${status !== 'Paid' ? `<button class="btn btn-secondary btn-sm" onclick="markPaid(${i})">Mark paid</button>` : ''}
+            <button class="btn btn-secondary btn-sm" onclick="editScheduled(${i})">Edit</button>
             <button class="btn btn-danger btn-sm" onclick="deleteScheduled(${i})">Remove</button>
           </td>
         </tr>
@@ -2279,7 +2487,7 @@
   function renderBalances() {
     const tbody = document.getElementById('balances-tbody');
     if (!userData.balances.length) {
-      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No accounts yet.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">No accounts yet.</div></td></tr>';
       return;
     }
     const used = usedAccountColors();
@@ -2294,6 +2502,8 @@
         const title = isTaken ? 'Already used by another account' : c;
         return `<span ${click} title="${title}" style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${c};cursor:${cursor};opacity:${opacity};box-shadow:${ring};"></span>`;
       }).join('');
+      const threshold = b.lowBalanceThreshold ?? 100;
+      const isLow = b.balance < threshold;
       return `
       <tr>
         <td style="color:${b.color || 'inherit'};font-weight:600;">${b.account}</td>
@@ -2303,7 +2513,15 @@
           </div>
         </td>
         <td class="mono" style="color:var(--muted)">${fmt(b.startingBalance || 0)}</td>
-        <td class="mono" style="color:var(--accent2)">${fmt(b.balance)}</td>
+        <td class="mono" style="color:${isLow ? 'var(--warn)' : 'var(--accent2)'};">
+          ${fmt(b.balance)}
+          ${isLow ? '<span class="badge upcoming" style="margin-left:6px;">Low</span>' : ''}
+        </td>
+        <td>
+          <input type="number" value="${threshold}" step="1" min="0"
+            style="width:80px;padding:4px 8px;font-size:12px;"
+            onchange="setAccountThreshold(${i}, this.value)" />
+        </td>
         <td style="color:var(--muted)">${b.updated}</td>
         <td><button class="btn btn-danger btn-sm" onclick="deleteAccount(${i})">Remove</button></td>
       </tr>
@@ -2322,13 +2540,19 @@
       .sort((a, b) => (safeParseDate(b.date) - safeParseDate(a.date)) || ((b._seq || 0) - (a._seq || 0)));
     tbody.innerHTML = sorted.map(t => {
       const isDeposit = t.type === 'Deposit';
+      const isTransferOut = t.type === 'Transfer Out';
+      const isTransferIn = t.type === 'Transfer In';
+      const isTransfer = isTransferOut || isTransferIn;
+      const badgeClass = isDeposit ? 'paid' : isTransfer ? 'upcoming' : 'overdue';
+      const amountColor = isDeposit ? 'var(--accent2)' : isTransfer ? 'var(--muted)' : 'var(--danger)';
+      const amountPrefix = (isDeposit || isTransferIn) ? '+' : '-';
       return `
         <tr>
           <td>${fmtDate(t.date) || t.date}</td>
-          <td><span class="badge ${isDeposit ? 'paid' : 'upcoming'}">${t.type}</span></td>
+          <td><span class="badge ${badgeClass}">${t.type}</span></td>
           <td>${t.desc}</td>
           <td>${t.account}</td>
-          <td class="mono" style="color:${isDeposit ? 'var(--accent2)' : 'var(--danger)'};">${isDeposit ? '+' : '-'}${fmt(t.amount)}</td>
+          <td class="mono" style="color:${amountColor};">${amountPrefix}${fmt(t.amount)}</td>
         </tr>
       `;
     }).join('');
