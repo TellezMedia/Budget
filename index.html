@@ -2012,7 +2012,9 @@
     }
 
     // Recent expenses
-    const recent = userData.expenses.slice(0, 5);
+    const recent = [...userData.expenses]
+      .sort((a, b) => (safeParseDate(b.date) || 0) - (safeParseDate(a.date) || 0))
+      .slice(0, 5);
     const reEl = document.getElementById('recent-expenses-body');
     if (!recent.length) {
       reEl.innerHTML = '<div class="empty-state">No expenses logged yet.</div>';
@@ -2131,7 +2133,10 @@
       tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No expenses yet.</div></td></tr>';
       return;
     }
-    tbody.innerHTML = userData.expenses.map((e, i) => `
+    const sorted = userData.expenses
+      .map((e, i) => ({ e, i }))
+      .sort((a, b) => (safeParseDate(b.e.date) || 0) - (safeParseDate(a.e.date) || 0));
+    tbody.innerHTML = sorted.map(({ e, i }) => `
       <tr>
         <td>${fmtDate(e.date)}</td>
         <td>${e.desc}</td>
