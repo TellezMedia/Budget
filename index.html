@@ -1600,7 +1600,7 @@
   }
 
   async function readSheet(tab) {
-    const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}`);
+    const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}?_=${Date.now()}`, { cache: 'no-store' });
     const data = await r.json();
     return (data.values || []).slice(1); // skip header row
   }
