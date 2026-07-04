@@ -695,11 +695,7 @@
           </div>
           <div class="form-group">
             <label>Account</label>
-            <select id="exp-account">
-              <option>PNC</option>
-              <option>Chime</option>
-              <option>Cash</option>
-              <option>Credit Card</option>
+            <select id="exp-account" class="account-select" data-extra="Cash,Credit Card">
             </select>
           </div>
         </div>
@@ -744,10 +740,7 @@
           </div>
           <div class="form-group">
             <label>Account</label>
-            <select id="bill-account">
-              <option>PNC</option>
-              <option>Chime</option>
-              <option>Auto-pay</option>
+            <select id="bill-account" class="account-select" data-extra="Auto-pay">
             </select>
           </div>
           <div class="form-group">
@@ -802,10 +795,7 @@
           </div>
           <div class="form-group">
             <label>Account</label>
-            <select id="sched-account">
-              <option>PNC</option>
-              <option>Chime</option>
-              <option>Auto-pay</option>
+            <select id="sched-account" class="account-select" data-extra="Auto-pay">
             </select>
           </div>
         </div>
@@ -862,10 +852,7 @@
           </div>
           <div class="form-group">
             <label>Account</label>
-            <select id="dep-account">
-              <option>PNC</option>
-              <option>Chime</option>
-              <option>Cash</option>
+            <select id="dep-account" class="account-select" data-extra="Cash">
             </select>
           </div>
         </div>
@@ -1941,7 +1928,20 @@
 
   // ---- Render ----
 
+  function populateAccountSelects() {
+    const selects = document.querySelectorAll('select.account-select');
+    const accountNames = userData.balances.map(b => b.account).filter(Boolean);
+    selects.forEach(sel => {
+      const extras = (sel.dataset.extra || '').split(',').map(s => s.trim()).filter(Boolean);
+      const previous = sel.value;
+      const options = [...accountNames, ...extras];
+      sel.innerHTML = options.map(a => `<option>${a}</option>`).join('');
+      if (options.includes(previous)) sel.value = previous;
+    });
+  }
+
   function renderAll() {
+    populateAccountSelects();
     renderDashboard();
     renderExpenses();
     renderBills();
