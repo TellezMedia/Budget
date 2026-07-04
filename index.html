@@ -591,16 +591,7 @@
     <div id="screen-dashboard" class="screen active">
       <div class="section-title">Overview</div>
       <div class="cards-row" id="balance-cards">
-        <div class="card">
-          <div class="card-label">PNC Checking</div>
-          <div class="card-value green" id="dash-pnc">$0.00</div>
-          <div class="card-sub">Current balance</div>
-        </div>
-        <div class="card">
-          <div class="card-label">Chime</div>
-          <div class="card-value green" id="dash-chime">$0.00</div>
-          <div class="card-sub">Current balance</div>
-        </div>
+        <div id="account-cards-container" style="display:contents"></div>
         <div class="card">
           <div class="card-label">This Month Spent</div>
           <div class="card-value warn" id="dash-spent">$0.00</div>
@@ -609,7 +600,7 @@
         <div class="card">
           <div class="card-label">Total Balance</div>
           <div class="card-value green" id="dash-total">$0.00</div>
-          <div class="card-sub">PNC + Chime combined</div>
+          <div class="card-sub" id="dash-total-sub">All accounts combined</div>
         </div>
       </div>
 
@@ -864,6 +855,7 @@
           <thead>
             <tr>
               <th>Account</th>
+              <th>Color</th>
               <th>Starting Balance</th>
               <th>Current Balance</th>
               <th>Last Updated</th>
@@ -871,7 +863,7 @@
             </tr>
           </thead>
           <tbody id="balances-tbody">
-            <tr><td colspan="4"><div class="empty-state">No accounts yet.</div></td></tr>
+            <tr><td colspan="6"><div class="empty-state">No accounts yet.</div></td></tr>
           </tbody>
         </table>
       </div>
@@ -1004,6 +996,7 @@
   const BUDGET_CATEGORIES = ['Food','Gas','Groceries','Entertainment','Shopping','Health','Utilities','Subscriptions','Dining Out','Personal Care','Auto','Other'];
 
   const PIE_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c','#4ade80','#e879f9'];
+  const ACCOUNT_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c'];
 
   let tokenClient;
   let accessToken = null;
@@ -1467,7 +1460,7 @@
     [TABS.expenses]:     [['Date','Description','Category','Account','Amount']],
     [TABS.bills]:        [['Name','Amount','DueDay','Account','Frequency']],
     [TABS.scheduled]:    [['Name','Amount','DueDate','Account','Status']],
-    [TABS.balances]:     [['Account','StartingBalance','CurrentBalance','LastUpdated']],
+    [TABS.balances]:     [['Account','StartingBalance','CurrentBalance','LastUpdated','Color']],
     [TABS.transactions]: [['Date','Type','Description','Account','Amount']]
   };
 
@@ -1663,14 +1656,47 @@
         account: r[0],
         startingBalance: isNewSchema ? (parseFloat(r[1]) || 0) : (parseFloat(r[1]) || 0),
         balance: isNewSchema ? (parseFloat(r[2]) || 0) : (parseFloat(r[1]) || 0),
-        updated: isNewSchema ? r[3] : r[2]
+        updated: isNewSchema ? r[3] : r[2],
+        color: (isNewSchema && r[4]) ? r[4] : null
       };
     });
+    await ensureAccountColors();
     userData.transactions = transactions.map(r => ({ date: r[0], type: r[1], desc: r[2], account: r[3], amount: parseFloat(r[4]) || 0 }));
     renderAll();
   }
 
   // ---- Add records ----
+
+  function usedAccountColors() {
+    return new Set(userData.balances.map(b => b.color).filter(Boolean));
+  }
+
+  function nextAvailableColor() {
+    const used = usedAccountColors();
+    return ACCOUNT_COLORS.find(c => !used.has(c)) || ACCOUNT_COLORS[0];
+  }
+
+  async function ensureAccountColors() {
+    for (let i = 0; i < userData.balances.length; i++) {
+      if (!userData.balances[i].color) {
+        const color = nextAvailableColor();
+        userData.balances[i].color = color;
+        await updateCell(TABS.balances, i, 4, color); // Color column
+      }
+    }
+  }
+
+  async function setAccountColor(index, color) {
+    const takenBy = userData.balances.findIndex((b, i) => i !== index && b.color === color);
+    if (takenBy >= 0) {
+      showToast('That color is already used by ' + userData.balances[takenBy].account + '.', 'error');
+      renderBalances();
+      return;
+    }
+    userData.balances[index].color = color;
+    await updateCell(TABS.balances, index, 4, color); // Color column
+    renderAll();
+  }
 
   async function deductFromBalance(accountName, amount) {
     if (!accountName || !amount) return;
@@ -1745,9 +1771,10 @@
       userData.balances[existing].balance = bal;
       userData.balances[existing].updated = today;
     } else {
-      // New account: starting balance = current balance
-      await appendRow(TABS.balances, [acc, bal, bal, today]);
-      userData.balances.push({ account: acc, startingBalance: bal, balance: bal, updated: today });
+      // New account: starting balance = current balance, assign an unused color
+      const color = nextAvailableColor();
+      await appendRow(TABS.balances, [acc, bal, bal, today, color]);
+      userData.balances.push({ account: acc, startingBalance: bal, balance: bal, updated: today, color });
     }
     clear('bal-account'); clear('bal-amount');
     renderAll(); showToast('Starting balance set for ' + acc + '.', 'success');
@@ -1957,15 +1984,21 @@
     const now = new Date();
     if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
 
-    // Balances
-    const pnc = userData.balances.find(b => b.account.toLowerCase().includes('pnc'));
-    const chime = userData.balances.find(b => b.account.toLowerCase().includes('chime'));
-    document.getElementById('dash-pnc').textContent = fmt(pnc ? pnc.balance : 0);
-    document.getElementById('dash-chime').textContent = fmt(chime ? chime.balance : 0);
+    // Balances: one card per real account, not just two fixed names
+    const cardsContainer = document.getElementById('account-cards-container');
+    cardsContainer.innerHTML = userData.balances.map(b => `
+      <div class="card">
+        <div class="card-label" style="color:${b.color || 'inherit'};">${b.account}</div>
+        <div class="card-value green">${fmt(b.balance)}</div>
+        <div class="card-sub">Current balance</div>
+      </div>
+    `).join('');
 
-    // Total balance
-    const total = (pnc ? pnc.balance : 0) + (chime ? chime.balance : 0);
+    // Total balance: sum of every account, however many there are
+    const total = userData.balances.reduce((s, b) => s + b.balance, 0);
     document.getElementById('dash-total').textContent = fmt(total);
+    document.getElementById('dash-total-sub').textContent =
+      userData.balances.map(b => b.account).join(' + ') + (userData.balances.length ? ' combined' : 'No accounts yet');
 
     // This month spent
     const monthSpent = userData.expenses
@@ -2238,18 +2271,33 @@
   function renderBalances() {
     const tbody = document.getElementById('balances-tbody');
     if (!userData.balances.length) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">No accounts yet.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No accounts yet.</div></td></tr>';
       return;
     }
-    tbody.innerHTML = userData.balances.map((b, i) => `
+    const used = usedAccountColors();
+    tbody.innerHTML = userData.balances.map((b, i) => {
+      const swatchOptions = ACCOUNT_COLORS
+        .filter(c => c === b.color || !used.has(c))
+        .map(c => `<option value="${c}" ${c === b.color ? 'selected' : ''}>${c}</option>`)
+        .join('');
+      return `
       <tr>
-        <td>${b.account}</td>
+        <td style="color:${b.color || 'inherit'};font-weight:600;">${b.account}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="display:inline-block;width:16px;height:16px;border-radius:50%;background:${b.color || '#888'};border:1px solid var(--border);"></span>
+            <select onchange="setAccountColor(${i}, this.value)" style="width:auto;padding:4px 8px;font-size:12px;">
+              ${swatchOptions}
+            </select>
+          </div>
+        </td>
         <td class="mono" style="color:var(--muted)">${fmt(b.startingBalance || 0)}</td>
         <td class="mono" style="color:var(--accent2)">${fmt(b.balance)}</td>
         <td style="color:var(--muted)">${b.updated}</td>
         <td><button class="btn btn-danger btn-sm" onclick="deleteAccount(${i})">Remove</button></td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
   }
 
   function renderTransactions() {
