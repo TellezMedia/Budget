@@ -1691,8 +1691,8 @@
     if (idx < 0) return; // no matching account on file
     const newBal = userData.balances[idx].balance - amount;
     const today = todayISO();
-    await updateCell(TABS.balances, idx, 1, newBal);
-    await updateCell(TABS.balances, idx, 2, today);
+    await updateCell(TABS.balances, idx, 2, newBal); // Current Balance column
+    await updateCell(TABS.balances, idx, 3, today);  // Last Updated column
     userData.balances[idx].balance = newBal;
     userData.balances[idx].updated = today;
   }
@@ -1703,8 +1703,8 @@
     if (idx < 0) return;
     const newBal = userData.balances[idx].balance + amount;
     const today = todayISO();
-    await updateCell(TABS.balances, idx, 1, newBal);
-    await updateCell(TABS.balances, idx, 2, today);
+    await updateCell(TABS.balances, idx, 2, newBal); // Current Balance column
+    await updateCell(TABS.balances, idx, 3, today);  // Last Updated column
     userData.balances[idx].balance = newBal;
     userData.balances[idx].updated = today;
   }
