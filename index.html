@@ -1650,7 +1650,7 @@
       readSheet(TABS.balances),
       readSheet(TABS.transactions)
     ]);
-    userData.expenses     = expenses.map(r => ({ date: r[0], desc: r[1], category: r[2], account: r[3], amount: parseFloat(r[4]) || 0 }));
+    userData.expenses     = expenses.map((r, i) => ({ date: r[0], desc: r[1], category: r[2], account: r[3], amount: parseFloat(r[4]) || 0, _seq: i }));
     userData.bills        = bills.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, day: r[2], account: r[3], freq: r[4] }));
     userData.scheduled    = scheduled.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, date: r[2], account: r[3], status: r[4] || 'Upcoming' }));
     userData.balances     = balances.map(r => {
@@ -1666,7 +1666,7 @@
       };
     });
     await ensureAccountColors();
-    userData.transactions = transactions.map(r => ({ date: r[0], type: r[1], desc: r[2], account: r[3], amount: parseFloat(r[4]) || 0 }));
+    userData.transactions = transactions.map((r, i) => ({ date: r[0], type: r[1], desc: r[2], account: r[3], amount: parseFloat(r[4]) || 0, _seq: i }));
     renderAll();
   }
 
@@ -1736,7 +1736,7 @@
     }
     if (!d || !desc || !amt) { showToast('Fill in date, description, and amount.', 'error'); return; }
     const synced = await appendRow(TABS.expenses, [d, desc, cat, acc, amt]);
-    userData.expenses.unshift({ date: d, desc, category: cat, account: acc, amount: amt });
+    userData.expenses.unshift({ date: d, desc, category: cat, account: acc, amount: amt, _seq: Date.now() });
     await logTransaction('Expense', desc, acc, amt);
     await deductFromBalance(acc, amt);
     clear('exp-desc'); clear('exp-amount');
@@ -1788,7 +1788,7 @@
   async function logTransaction(type, desc, account, amount) {
     const today = todayISO();
     await appendRow(TABS.transactions, [today, type, desc, account, amount]);
-    userData.transactions.unshift({ date: today, type, desc, account, amount });
+    userData.transactions.unshift({ date: today, type, desc, account, amount, _seq: Date.now() });
   }
 
   async function addDeposit() {
@@ -2051,7 +2051,7 @@
 
     // Recent transactions (expenses and deposits together)
     const recentTx = [...(userData.transactions || [])]
-      .sort((a, b) => (safeParseDate(b.date) || 0) - (safeParseDate(a.date) || 0))
+      .sort((a, b) => (safeParseDate(b.date) - safeParseDate(a.date)) || ((b._seq || 0) - (a._seq || 0)))
       .slice(0, 5);
     const reEl = document.getElementById('recent-expenses-body');
     if (!recentTx.length) {
@@ -2176,7 +2176,7 @@
     }
     const sorted = userData.expenses
       .map((e, i) => ({ e, i }))
-      .sort((a, b) => (safeParseDate(b.e.date) || 0) - (safeParseDate(a.e.date) || 0));
+      .sort((a, b) => (safeParseDate(b.e.date) - safeParseDate(a.e.date)) || ((b.e._seq || 0) - (a.e._seq || 0)));
     tbody.innerHTML = sorted.map(({ e, i }) => `
       <tr>
         <td>${fmtDate(e.date)}</td>
@@ -2318,7 +2318,9 @@
       tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">No transactions yet.</div></td></tr>';
       return;
     }
-    tbody.innerHTML = userData.transactions.map(t => {
+    const sorted = [...userData.transactions]
+      .sort((a, b) => (safeParseDate(b.date) - safeParseDate(a.date)) || ((b._seq || 0) - (a._seq || 0)));
+    tbody.innerHTML = sorted.map(t => {
       const isDeposit = t.type === 'Deposit';
       return `
         <tr>
