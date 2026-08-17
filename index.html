@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Budget</title>
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -310,7 +311,6 @@
     .list-row-amount { font-family: var(--mono); font-size: 14px; }
     .list-row-amount.red { color: var(--danger); }
     .list-row-amount.green { color: var(--accent2); }
-    .list-row-amount.muted { color: var(--muted); }
 
     .badge {
       display: inline-flex;
@@ -564,7 +564,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <div class="header-brand">Budget <span id="app-version" style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v2.5</span></div>
+    <div class="header-brand">Budget</div>
     <div style="display:flex;align-items:center;margin-left:auto;">
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">&#9790; Dark</button>
       <div class="header-user" onclick="toggleUserMenu()">
@@ -583,7 +583,6 @@
     <div class="nav-tab" onclick="showScreen('expenses', this)">Expenses</div>
     <div class="nav-tab" onclick="showScreen('bills', this)">Bills</div>
     <div class="nav-tab" onclick="showScreen('scheduled', this)">Scheduled</div>
-    <div class="nav-tab" onclick="showScreen('transactions', this)">Transactions</div>
     <div class="nav-tab" onclick="showScreen('balances', this)">Accounts</div>
     <div class="nav-tab" onclick="showScreen('budget', this)">Budget</div>
   </nav>
@@ -593,7 +592,16 @@
     <div id="screen-dashboard" class="screen active">
       <div class="section-title">Overview</div>
       <div class="cards-row" id="balance-cards">
-        <div id="account-cards-container" style="display:contents"></div>
+        <div class="card">
+          <div class="card-label">PNC Checking</div>
+          <div class="card-value green" id="dash-pnc">$0.00</div>
+          <div class="card-sub">Current balance</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Chime</div>
+          <div class="card-value green" id="dash-chime">$0.00</div>
+          <div class="card-sub">Current balance</div>
+        </div>
         <div class="card">
           <div class="card-label">This Month Spent</div>
           <div class="card-value warn" id="dash-spent">$0.00</div>
@@ -602,7 +610,7 @@
         <div class="card">
           <div class="card-label">Total Balance</div>
           <div class="card-value green" id="dash-total">$0.00</div>
-          <div class="card-sub" id="dash-total-sub">All accounts combined</div>
+          <div class="card-sub">PNC + Chime combined</div>
         </div>
       </div>
 
@@ -613,10 +621,10 @@
         </div>
       </div>
 
-      <div class="section-title">Recent transactions</div>
+      <div class="section-title">Recent expenses</div>
       <div class="upcoming-list">
         <div id="recent-expenses-body">
-          <div class="empty-state">No transactions logged yet.</div>
+          <div class="empty-state">No expenses logged yet.</div>
         </div>
       </div>
 
@@ -688,12 +696,15 @@
           </div>
           <div class="form-group">
             <label>Account</label>
-            <select id="exp-account" class="account-select" data-extra="Cash,Credit Card">
+            <select id="exp-account">
+              <option>PNC</option>
+              <option>Chime</option>
+              <option>Cash</option>
+              <option>Credit Card</option>
             </select>
           </div>
         </div>
-        <button class="btn btn-primary" id="exp-submit-btn" onclick="saveExpense()">Save expense</button>
-        <button class="btn btn-secondary" id="exp-cancel-btn" onclick="cancelEditExpense()" style="display:none;">Cancel edit</button>
+        <button class="btn btn-primary" onclick="addExpense()">Save expense</button>
       </div>
 
       <div class="data-table">
@@ -734,7 +745,10 @@
           </div>
           <div class="form-group">
             <label>Account</label>
-            <select id="bill-account" class="account-select" data-extra="Auto-pay">
+            <select id="bill-account">
+              <option>PNC</option>
+              <option>Chime</option>
+              <option>Auto-pay</option>
             </select>
           </div>
           <div class="form-group">
@@ -747,8 +761,7 @@
             </select>
           </div>
         </div>
-        <button class="btn btn-primary" id="bill-submit-btn" onclick="saveBill()">Save bill</button>
-        <button class="btn btn-secondary" id="bill-cancel-btn" onclick="cancelEditBill()" style="display:none;">Cancel edit</button>
+        <button class="btn btn-primary" onclick="addBill()">Save bill</button>
       </div>
 
       <div class="data-table">
@@ -790,12 +803,14 @@
           </div>
           <div class="form-group">
             <label>Account</label>
-            <select id="sched-account" class="account-select" data-extra="Auto-pay">
+            <select id="sched-account">
+              <option>PNC</option>
+              <option>Chime</option>
+              <option>Auto-pay</option>
             </select>
           </div>
         </div>
-        <button class="btn btn-primary" id="sched-submit-btn" onclick="saveScheduled()">Save payment</button>
-        <button class="btn btn-secondary" id="sched-cancel-btn" onclick="cancelEditScheduled()" style="display:none;">Cancel edit</button>
+        <button class="btn btn-primary" onclick="addScheduled()">Save payment</button>
       </div>
 
       <div class="data-table">
@@ -835,39 +850,6 @@
         <button class="btn btn-primary" onclick="addBalance()">Set balance</button>
       </div>
 
-      <div class="data-table" style="margin-bottom:24px;">
-        <table>
-          <thead>
-            <tr>
-              <th>Account</th>
-              <th>Color</th>
-              <th>Starting Balance</th>
-              <th>Current Balance</th>
-              <th>Alert Below</th>
-              <th>Last Updated</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="balances-tbody">
-            <tr><td colspan="7"><div class="empty-state">No accounts yet.</div></td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="form-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-          <div>
-            <div class="form-title" style="margin-bottom:2px;">Balance Transactions</div>
-            <p style="font-size:12px;color:var(--muted);">Verifies app math: Starting Balance + Deposits - Expenses = Current Balance</p>
-          </div>
-          <button class="btn btn-secondary" onclick="balanceTransactionsCheck()">Run check</button>
-        </div>
-        <div id="balance-check-results"><div class="empty-state" style="padding:16px 0;">Click Run check to verify your balances.</div></div>
-      </div>
-    </div>
-
-    <!-- TRANSACTIONS -->
-    <div id="screen-transactions" class="screen">
       <div class="form-card">
         <div class="form-title">Log a deposit</div>
         <div class="form-grid">
@@ -881,37 +863,42 @@
           </div>
           <div class="form-group">
             <label>Account</label>
-            <select id="dep-account" class="account-select" data-extra="Cash">
+            <select id="dep-account">
+              <option>PNC</option>
+              <option>Chime</option>
+              <option>Cash</option>
             </select>
           </div>
         </div>
         <button class="btn btn-primary" onclick="addDeposit()">Log deposit</button>
       </div>
 
+      <div class="data-table" style="margin-bottom:24px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Account</th>
+              <th>Starting Balance</th>
+              <th>Current Balance</th>
+              <th>Last Updated</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="balances-tbody">
+            <tr><td colspan="4"><div class="empty-state">No accounts yet.</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
       <div class="form-card">
-        <div class="form-title">Move money between accounts</div>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:16px;margin-top:-8px;">Transfers move money between your own accounts. They never count as spending and never appear in your Budget totals.</p>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>From</label>
-            <select id="xfer-from" class="account-select" data-extra="">
-            </select>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div>
+            <div class="form-title" style="margin-bottom:2px;">Balance Transactions</div>
+            <p style="font-size:12px;color:var(--muted);">Verifies app math: Starting Balance + Deposits - Expenses = Current Balance</p>
           </div>
-          <div class="form-group">
-            <label>To</label>
-            <select id="xfer-to" class="account-select" data-extra="">
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Amount</label>
-            <input type="number" id="xfer-amount" placeholder="0.00" step="0.01" />
-          </div>
-          <div class="form-group">
-            <label>Description (optional)</label>
-            <input type="text" id="xfer-desc" placeholder="Move to savings..." />
-          </div>
+          <button class="btn btn-secondary" onclick="balanceTransactionsCheck()">Run check</button>
         </div>
-        <button class="btn btn-primary" onclick="transferMoney()">Move money</button>
+        <div id="balance-check-results"><div class="empty-state" style="padding:16px 0;">Click Run check to verify your balances.</div></div>
       </div>
 
       <div class="section-title">Transaction history</div>
@@ -1031,8 +1018,6 @@
   const BUDGET_CATEGORIES = ['Food','Gas','Groceries','Entertainment','Shopping','Health','Utilities','Subscriptions','Dining Out','Personal Care','Auto','Other'];
 
   const PIE_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c','#4ade80','#e879f9'];
-  const ACCOUNT_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c'];
-  const APP_VERSION = 'v2.5.2';
 
   let tokenClient;
   let accessToken = null;
@@ -1496,7 +1481,7 @@
     [TABS.expenses]:     [['Date','Description','Category','Account','Amount']],
     [TABS.bills]:        [['Name','Amount','DueDay','Account','Frequency']],
     [TABS.scheduled]:    [['Name','Amount','DueDate','Account','Status']],
-    [TABS.balances]:     [['Account','StartingBalance','CurrentBalance','LastUpdated','Color','LowBalanceThreshold']],
+    [TABS.balances]:     [['Account','StartingBalance','CurrentBalance','LastUpdated']],
     [TABS.transactions]: [['Date','Type','Description','Account','Amount']]
   };
 
@@ -1616,7 +1601,7 @@
   }
 
   async function readSheet(tab) {
-    const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}?_=${Date.now()}`, { cache: 'no-store' });
+    const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}`);
     const data = await r.json();
     return (data.values || []).slice(1); // skip header row
   }
@@ -1681,7 +1666,7 @@
       readSheet(TABS.balances),
       readSheet(TABS.transactions)
     ]);
-    userData.expenses     = expenses.map((r, i) => ({ date: r[0], desc: r[1], category: r[2], account: r[3], amount: parseFloat(r[4]) || 0, _seq: i }));
+    userData.expenses     = expenses.map(r => ({ date: r[0], desc: r[1], category: r[2], account: r[3], amount: parseFloat(r[4]) || 0 }));
     userData.bills        = bills.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, day: r[2], account: r[3], freq: r[4] }));
     userData.scheduled    = scheduled.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, date: r[2], account: r[3], status: r[4] || 'Upcoming' }));
     userData.balances     = balances.map(r => {
@@ -1692,60 +1677,14 @@
         account: r[0],
         startingBalance: isNewSchema ? (parseFloat(r[1]) || 0) : (parseFloat(r[1]) || 0),
         balance: isNewSchema ? (parseFloat(r[2]) || 0) : (parseFloat(r[1]) || 0),
-        updated: isNewSchema ? r[3] : r[2],
-        color: (isNewSchema && r[4]) ? r[4] : null,
-        lowBalanceThreshold: (r[5] !== undefined && r[5] !== '') ? (parseFloat(r[5]) || 0) : 100
+        updated: isNewSchema ? r[3] : r[2]
       };
     });
-    await ensureAccountColors();
-    userData.transactions = transactions.map((r, i) => ({ date: r[0], type: r[1], desc: r[2], account: r[3], amount: parseFloat(r[4]) || 0, _seq: i }));
+    userData.transactions = transactions.map(r => ({ date: r[0], type: r[1], desc: r[2], account: r[3], amount: parseFloat(r[4]) || 0 }));
     renderAll();
   }
 
   // ---- Add records ----
-
-  function usedAccountColors() {
-    return new Set(userData.balances.map(b => b.color).filter(Boolean));
-  }
-
-  function nextAvailableColor() {
-    const used = usedAccountColors();
-    return ACCOUNT_COLORS.find(c => !used.has(c)) || ACCOUNT_COLORS[0];
-  }
-
-  async function ensureAccountColors() {
-    for (let i = 0; i < userData.balances.length; i++) {
-      if (!userData.balances[i].color) {
-        const color = nextAvailableColor();
-        userData.balances[i].color = color;
-        await updateCell(TABS.balances, i, 4, color); // Color column
-      }
-    }
-  }
-
-  async function setAccountColor(index, color) {
-    const takenBy = userData.balances.findIndex((b, i) => i !== index && b.color === color);
-    if (takenBy >= 0) {
-      showToast('That color is already used by ' + userData.balances[takenBy].account + '.', 'error');
-      renderBalances();
-      return;
-    }
-    userData.balances[index].color = color;
-    await updateCell(TABS.balances, index, 4, color); // Color column
-    renderAll();
-  }
-
-  async function setAccountThreshold(index, value) {
-    const threshold = parseFloat(value);
-    if (isNaN(threshold) || threshold < 0) {
-      showToast('Enter a valid low balance amount.', 'error');
-      renderBalances();
-      return;
-    }
-    userData.balances[index].lowBalanceThreshold = threshold;
-    await updateCell(TABS.balances, index, 5, threshold); // LowBalanceThreshold column
-    renderAll();
-  }
 
   async function deductFromBalance(accountName, amount) {
     if (!accountName || !amount) return;
@@ -1753,8 +1692,8 @@
     if (idx < 0) return; // no matching account on file
     const newBal = userData.balances[idx].balance - amount;
     const today = todayISO();
-    await updateCell(TABS.balances, idx, 2, newBal); // Current Balance column
-    await updateCell(TABS.balances, idx, 3, today);  // Last Updated column
+    await updateCell(TABS.balances, idx, 1, newBal);
+    await updateCell(TABS.balances, idx, 2, today);
     userData.balances[idx].balance = newBal;
     userData.balances[idx].updated = today;
   }
@@ -1765,15 +1704,13 @@
     if (idx < 0) return;
     const newBal = userData.balances[idx].balance + amount;
     const today = todayISO();
-    await updateCell(TABS.balances, idx, 2, newBal); // Current Balance column
-    await updateCell(TABS.balances, idx, 3, today);  // Last Updated column
+    await updateCell(TABS.balances, idx, 1, newBal);
+    await updateCell(TABS.balances, idx, 2, today);
     userData.balances[idx].balance = newBal;
     userData.balances[idx].updated = today;
   }
 
-  let editingExpenseIndex = null;
-
-  async function saveExpense() {
+  async function addExpense() {
     const d = v('exp-date'), desc = v('exp-desc'), amt = parseFloat(v('exp-amount')), acc = v('exp-account');
     let cat = v('exp-category');
     if (cat === 'Other') {
@@ -1781,29 +1718,8 @@
       if (custom) cat = custom;
     }
     if (!d || !desc || !amt) { showToast('Fill in date, description, and amount.', 'error'); return; }
-
-    if (editingExpenseIndex !== null) {
-      const i = editingExpenseIndex;
-      const old = userData.expenses[i];
-      // Reverse the old amount's effect on its original account, then apply
-      // the new amount to whichever account is now selected. Handles both
-      // an amount change and an account change in one pass.
-      await addToBalance(old.account, old.amount);
-      await deductFromBalance(acc, amt);
-      await updateCell(TABS.expenses, i, 0, d);
-      await updateCell(TABS.expenses, i, 1, desc);
-      await updateCell(TABS.expenses, i, 2, cat);
-      await updateCell(TABS.expenses, i, 3, acc);
-      await updateCell(TABS.expenses, i, 4, amt);
-      userData.expenses[i] = { ...old, date: d, desc, category: cat, account: acc, amount: amt };
-      cancelEditExpense();
-      renderAll();
-      showToast('Expense updated.', 'success');
-      return;
-    }
-
     const synced = await appendRow(TABS.expenses, [d, desc, cat, acc, amt]);
-    userData.expenses.unshift({ date: d, desc, category: cat, account: acc, amount: amt, _seq: Date.now() });
+    userData.expenses.unshift({ date: d, desc, category: cat, account: acc, amount: amt });
     await logTransaction('Expense', desc, acc, amt);
     await deductFromBalance(acc, amt);
     clear('exp-desc'); clear('exp-amount');
@@ -1813,125 +1729,22 @@
     if (synced) showToast('Expense saved and deducted from ' + acc + '.', 'success');
   }
 
-  function editExpense(i) {
-    const e = userData.expenses[i];
-    editingExpenseIndex = i;
-    document.getElementById('exp-date').value = e.date;
-    document.getElementById('exp-desc').value = e.desc;
-    document.getElementById('exp-amount').value = e.amount;
-    document.getElementById('exp-account').value = e.account;
-    const catSelect = document.getElementById('exp-category');
-    const knownCategory = [...catSelect.options].some(o => o.value === e.category);
-    if (knownCategory) {
-      catSelect.value = e.category;
-    } else {
-      catSelect.value = 'Other';
-      document.getElementById('exp-custom-category').value = e.category;
-    }
-    toggleCustomCat();
-    document.getElementById('exp-submit-btn').textContent = 'Update expense';
-    document.getElementById('exp-cancel-btn').style.display = 'inline-block';
-    document.getElementById('exp-desc').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-
-  function cancelEditExpense() {
-    editingExpenseIndex = null;
-    clear('exp-date'); clear('exp-desc'); clear('exp-amount');
-    const customInput = document.getElementById('exp-custom-category');
-    if (customInput) customInput.value = '';
-    document.getElementById('exp-submit-btn').textContent = 'Save expense';
-    document.getElementById('exp-cancel-btn').style.display = 'none';
-  }
-
-  let editingBillIndex = null;
-
-  async function saveBill() {
+  async function addBill() {
     const name = v('bill-name'), amt = parseFloat(v('bill-amount')), day = v('bill-day'), acc = v('bill-account'), freq = v('bill-freq');
     if (!name || !amt || !day) { showToast('Fill in name, amount, and due day.', 'error'); return; }
-
-    if (editingBillIndex !== null) {
-      const i = editingBillIndex;
-      await updateCell(TABS.bills, i, 0, name);
-      await updateCell(TABS.bills, i, 1, amt);
-      await updateCell(TABS.bills, i, 2, day);
-      await updateCell(TABS.bills, i, 3, acc);
-      await updateCell(TABS.bills, i, 4, freq);
-      userData.bills[i] = { name, amount: amt, day, account: acc, freq };
-      cancelEditBill();
-      renderAll();
-      showToast('Bill updated.', 'success');
-      return;
-    }
-
     await appendRow(TABS.bills, [name, amt, day, acc, freq]);
     userData.bills.push({ name, amount: amt, day, account: acc, freq });
     clear('bill-name'); clear('bill-amount'); clear('bill-day');
     renderAll(); showToast('Bill saved.', 'success');
   }
 
-  function editBill(i) {
-    const b = userData.bills[i];
-    editingBillIndex = i;
-    document.getElementById('bill-name').value = b.name;
-    document.getElementById('bill-amount').value = b.amount;
-    document.getElementById('bill-day').value = b.day;
-    document.getElementById('bill-account').value = b.account;
-    document.getElementById('bill-freq').value = b.freq;
-    document.getElementById('bill-submit-btn').textContent = 'Update bill';
-    document.getElementById('bill-cancel-btn').style.display = 'inline-block';
-    document.getElementById('bill-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-
-  function cancelEditBill() {
-    editingBillIndex = null;
-    clear('bill-name'); clear('bill-amount'); clear('bill-day');
-    document.getElementById('bill-submit-btn').textContent = 'Save bill';
-    document.getElementById('bill-cancel-btn').style.display = 'none';
-  }
-
-  let editingScheduledIndex = null;
-
-  async function saveScheduled() {
+  async function addScheduled() {
     const name = v('sched-name'), amt = parseFloat(v('sched-amount')), date = v('sched-date'), acc = v('sched-account');
     if (!name || !amt || !date) { showToast('Fill in name, amount, and due date.', 'error'); return; }
-
-    if (editingScheduledIndex !== null) {
-      const i = editingScheduledIndex;
-      const old = userData.scheduled[i];
-      await updateCell(TABS.scheduled, i, 0, name);
-      await updateCell(TABS.scheduled, i, 1, amt);
-      await updateCell(TABS.scheduled, i, 2, date);
-      await updateCell(TABS.scheduled, i, 3, acc);
-      userData.scheduled[i] = { ...old, name, amount: amt, date, account: acc };
-      cancelEditScheduled();
-      renderAll();
-      showToast('Payment updated.', 'success');
-      return;
-    }
-
     await appendRow(TABS.scheduled, [name, amt, date, acc, 'Upcoming']);
     userData.scheduled.push({ name, amount: amt, date, account: acc, status: 'Upcoming' });
     clear('sched-name'); clear('sched-amount'); clear('sched-date');
     renderAll(); showToast('Payment saved.', 'success');
-  }
-
-  function editScheduled(i) {
-    const p = userData.scheduled[i];
-    editingScheduledIndex = i;
-    document.getElementById('sched-name').value = p.name;
-    document.getElementById('sched-amount').value = p.amount;
-    document.getElementById('sched-date').value = p.date;
-    document.getElementById('sched-account').value = p.account;
-    document.getElementById('sched-submit-btn').textContent = 'Update payment';
-    document.getElementById('sched-cancel-btn').style.display = 'inline-block';
-    document.getElementById('sched-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-
-  function cancelEditScheduled() {
-    editingScheduledIndex = null;
-    clear('sched-name'); clear('sched-amount'); clear('sched-date');
-    document.getElementById('sched-submit-btn').textContent = 'Save payment';
-    document.getElementById('sched-cancel-btn').style.display = 'none';
   }
 
   async function addBalance() {
@@ -1946,11 +1759,9 @@
       userData.balances[existing].balance = bal;
       userData.balances[existing].updated = today;
     } else {
-      // New account: starting balance = current balance, assign an unused color
-      const color = nextAvailableColor();
-      const threshold = 100;
-      await appendRow(TABS.balances, [acc, bal, bal, today, color, threshold]);
-      userData.balances.push({ account: acc, startingBalance: bal, balance: bal, updated: today, color, lowBalanceThreshold: threshold });
+      // New account: starting balance = current balance
+      await appendRow(TABS.balances, [acc, bal, bal, today]);
+      userData.balances.push({ account: acc, startingBalance: bal, balance: bal, updated: today });
     }
     clear('bal-account'); clear('bal-amount');
     renderAll(); showToast('Starting balance set for ' + acc + '.', 'success');
@@ -1959,7 +1770,7 @@
   async function logTransaction(type, desc, account, amount) {
     const today = todayISO();
     await appendRow(TABS.transactions, [today, type, desc, account, amount]);
-    userData.transactions.unshift({ date: today, type, desc, account, amount, _seq: Date.now() });
+    userData.transactions.unshift({ date: today, type, desc, account, amount });
   }
 
   async function addDeposit() {
@@ -1969,24 +1780,6 @@
     await addToBalance(acc, amt);
     clear('dep-desc'); clear('dep-amount');
     renderAll(); showToast('Deposit of ' + fmt(amt) + ' added to ' + acc + '.', 'success');
-  }
-
-  async function transferMoney() {
-    const from = v('xfer-from'), to = v('xfer-to'), amt = parseFloat(v('xfer-amount'));
-    let desc = v('xfer-desc').trim();
-    if (!from || !to || !amt) { showToast('Fill in from, to, and amount.', 'error'); return; }
-    if (from === to) { showToast('Pick two different accounts to move money between.', 'error'); return; }
-    if (!desc) desc = 'Transfer between ' + from + ' and ' + to;
-    // Logged as two linked entries, one per account, so per-account math
-    // (Balance Transactions check) and filtering stay correct. Neither
-    // "Transfer Out" nor "Transfer In" ever lands in the Expenses sheet,
-    // so transfers never count toward This Month Spent or Budget totals.
-    await logTransaction('Transfer Out', desc, from, amt);
-    await logTransaction('Transfer In', desc, to, amt);
-    await deductFromBalance(from, amt);
-    await addToBalance(to, amt);
-    clear('xfer-desc'); clear('xfer-amount');
-    renderAll(); showToast(fmt(amt) + ' moved from ' + from + ' to ' + to + '.', 'success');
   }
 
   async function balanceTransactionsCheck() {
@@ -1999,16 +1792,10 @@
       const deposits = userData.transactions
         .filter(t => t.type === 'Deposit' && t.account.toLowerCase() === bal.account.toLowerCase())
         .reduce((s, t) => s + t.amount, 0);
-      const transfersOut = userData.transactions
-        .filter(t => t.type === 'Transfer Out' && t.account.toLowerCase() === bal.account.toLowerCase())
-        .reduce((s, t) => s + t.amount, 0);
-      const transfersIn = userData.transactions
-        .filter(t => t.type === 'Transfer In' && t.account.toLowerCase() === bal.account.toLowerCase())
-        .reduce((s, t) => s + t.amount, 0);
-      const expected = start - expenses + deposits - transfersOut + transfersIn;
+      const expected = start - expenses + deposits;
       const current = bal.balance;
       const diff = Math.abs(expected - current);
-      results.push({ account: bal.account, start, expenses, deposits, transfersOut, transfersIn, expected, current, diff, ok: diff < 0.02 });
+      results.push({ account: bal.account, start, expenses, deposits, expected, current, diff, ok: diff < 0.02 });
     }
 
     const el = document.getElementById('balance-check-results');
@@ -2028,8 +1815,6 @@
           <div>Starting balance: <span style="color:var(--text);">${fmt(r.start)}</span></div>
           <div>Total deposits: <span style="color:var(--accent2);">+${fmt(r.deposits)}</span></div>
           <div>Total expenses: <span style="color:var(--danger);">-${fmt(r.expenses)}</span></div>
-          <div>Transfers in: <span style="color:var(--accent2);">+${fmt(r.transfersIn)}</span></div>
-          <div>Transfers out: <span style="color:var(--muted);">-${fmt(r.transfersOut)}</span></div>
           <div>Expected balance: <span style="color:var(--text);">${fmt(r.expected)}</span></div>
           <div>App balance: <span style="color:var(--text);">${fmt(r.current)}</span></div>
           ${!r.ok ? `<div><button class="btn btn-primary btn-sm" onclick="fixBalance('${r.account}', ${r.expected})">Correct to ${fmt(r.expected)}</button></div>` : ''}
@@ -2157,20 +1942,7 @@
 
   // ---- Render ----
 
-  function populateAccountSelects() {
-    const selects = document.querySelectorAll('select.account-select');
-    const accountNames = userData.balances.map(b => b.account).filter(Boolean);
-    selects.forEach(sel => {
-      const extras = (sel.dataset.extra || '').split(',').map(s => s.trim()).filter(Boolean);
-      const previous = sel.value;
-      const options = [...accountNames, ...extras];
-      sel.innerHTML = options.map(a => `<option>${a}</option>`).join('');
-      if (options.includes(previous)) sel.value = previous;
-    });
-  }
-
   function renderAll() {
-    populateAccountSelects();
     renderDashboard();
     renderExpenses();
     renderBills();
@@ -2186,25 +1958,15 @@
     const now = new Date();
     if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
 
-    // Balances: one card per real account, not just two fixed names
-    const cardsContainer = document.getElementById('account-cards-container');
-    cardsContainer.innerHTML = userData.balances.map(b => {
-      const threshold = b.lowBalanceThreshold ?? 100;
-      const isLow = b.balance < threshold;
-      return `
-      <div class="card">
-        <div class="card-label" style="color:${b.color || 'inherit'};">${b.account}</div>
-        <div class="card-value ${isLow ? 'warn' : 'green'}">${fmt(b.balance)}</div>
-        <div class="card-sub">${isLow ? 'Below ' + fmt(threshold) + ' alert' : 'Current balance'}</div>
-      </div>
-    `;
-    }).join('');
+    // Balances
+    const pnc = userData.balances.find(b => b.account.toLowerCase().includes('pnc'));
+    const chime = userData.balances.find(b => b.account.toLowerCase().includes('chime'));
+    document.getElementById('dash-pnc').textContent = fmt(pnc ? pnc.balance : 0);
+    document.getElementById('dash-chime').textContent = fmt(chime ? chime.balance : 0);
 
-    // Total balance: sum of every account, however many there are
-    const total = userData.balances.reduce((s, b) => s + b.balance, 0);
+    // Total balance
+    const total = (pnc ? pnc.balance : 0) + (chime ? chime.balance : 0);
     document.getElementById('dash-total').textContent = fmt(total);
-    document.getElementById('dash-total-sub').textContent =
-      userData.balances.map(b => b.account).join(' + ') + (userData.balances.length ? ' combined' : 'No accounts yet');
 
     // This month spent
     const monthSpent = userData.expenses
@@ -2250,31 +2012,21 @@
       `).join('');
     }
 
-    // Recent transactions (expenses and deposits together)
-    const recentTx = [...(userData.transactions || [])]
-      .sort((a, b) => (safeParseDate(b.date) - safeParseDate(a.date)) || ((b._seq || 0) - (a._seq || 0)))
-      .slice(0, 5);
+    // Recent expenses
+    const recent = userData.expenses.slice(0, 5);
     const reEl = document.getElementById('recent-expenses-body');
-    if (!recentTx.length) {
-      reEl.innerHTML = '<div class="empty-state">No transactions logged yet.</div>';
+    if (!recent.length) {
+      reEl.innerHTML = '<div class="empty-state">No expenses logged yet.</div>';
     } else {
-      reEl.innerHTML = recentTx.map(t => {
-        const isDeposit = t.type === 'Deposit';
-        const isTransferOut = t.type === 'Transfer Out';
-        const isTransferIn = t.type === 'Transfer In';
-        const isTransfer = isTransferOut || isTransferIn;
-        const amountClass = isDeposit ? 'green' : isTransfer ? 'muted' : 'red';
-        const amountPrefix = (isDeposit || isTransferIn) ? '+' : '-';
-        return `
+      reEl.innerHTML = recent.map(e => `
         <div class="list-row">
           <div class="list-row-left">
-            <div class="list-row-name">${t.desc}</div>
-            <div class="list-row-date">${fmtDate(t.date)} · ${t.type} · ${t.account}</div>
+            <div class="list-row-name">${e.desc}</div>
+            <div class="list-row-date">${fmtDate(e.date)} · ${e.category} · ${e.account}</div>
           </div>
-          <div class="list-row-amount ${amountClass}">${amountPrefix}${fmt(t.amount)}</div>
+          <div class="list-row-amount red">${fmt(e.amount)}</div>
         </div>
-      `;
-      }).join('');
+      `).join('');
     }
 
     // Calendar
@@ -2380,17 +2132,14 @@
       tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No expenses yet.</div></td></tr>';
       return;
     }
-    const sorted = userData.expenses
-      .map((e, i) => ({ e, i }))
-      .sort((a, b) => (safeParseDate(b.e.date) - safeParseDate(a.e.date)) || ((b.e._seq || 0) - (a.e._seq || 0)));
-    tbody.innerHTML = sorted.map(({ e, i }) => `
+    tbody.innerHTML = userData.expenses.map((e, i) => `
       <tr>
         <td>${fmtDate(e.date)}</td>
         <td>${e.desc}</td>
         <td>${e.category}</td>
         <td>${e.account}</td>
         <td class="mono">${fmt(e.amount)}</td>
-        <td><button class="btn btn-secondary btn-sm" onclick="editExpense(${i})">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteExpense(${i})">Remove</button></td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteExpense(${i})">Remove</button></td>
       </tr>
     `).join('');
   }
@@ -2449,7 +2198,6 @@
           <td>${badge}</td>
           <td style="display:flex;gap:6px;">
             <button class="btn ${btnClass} btn-sm" onclick="markBillPaid(${i})">${btnLabel}</button>
-            <button class="btn btn-secondary btn-sm" onclick="editBill(${i})">Edit</button>
             <button class="btn btn-danger btn-sm" onclick="deleteBill(${i})">Remove</button>
           </td>
         </tr>
@@ -2476,7 +2224,6 @@
           <td><span class="badge ${badge}">${badgeLabel}</span></td>
           <td style="display:flex;gap:6px;">
             ${status !== 'Paid' ? `<button class="btn btn-secondary btn-sm" onclick="markPaid(${i})">Mark paid</button>` : ''}
-            <button class="btn btn-secondary btn-sm" onclick="editScheduled(${i})">Edit</button>
             <button class="btn btn-danger btn-sm" onclick="deleteScheduled(${i})">Remove</button>
           </td>
         </tr>
@@ -2487,46 +2234,18 @@
   function renderBalances() {
     const tbody = document.getElementById('balances-tbody');
     if (!userData.balances.length) {
-      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">No accounts yet.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">No accounts yet.</div></td></tr>';
       return;
     }
-    const used = usedAccountColors();
-    tbody.innerHTML = userData.balances.map((b, i) => {
-      const swatches = ACCOUNT_COLORS.map(c => {
-        const isCurrent = c === b.color;
-        const isTaken = used.has(c) && !isCurrent;
-        const ring = isCurrent ? '0 0 0 2px var(--bg), 0 0 0 4px ' + c : 'none';
-        const cursor = isTaken ? 'not-allowed' : 'pointer';
-        const opacity = isTaken ? '0.25' : '1';
-        const click = isTaken ? '' : `onclick="setAccountColor(${i}, '${c}')"`;
-        const title = isTaken ? 'Already used by another account' : c;
-        return `<span ${click} title="${title}" style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${c};cursor:${cursor};opacity:${opacity};box-shadow:${ring};"></span>`;
-      }).join('');
-      const threshold = b.lowBalanceThreshold ?? 100;
-      const isLow = b.balance < threshold;
-      return `
+    tbody.innerHTML = userData.balances.map((b, i) => `
       <tr>
-        <td style="color:${b.color || 'inherit'};font-weight:600;">${b.account}</td>
-        <td>
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:220px;">
-            ${swatches}
-          </div>
-        </td>
+        <td>${b.account}</td>
         <td class="mono" style="color:var(--muted)">${fmt(b.startingBalance || 0)}</td>
-        <td class="mono" style="color:${isLow ? 'var(--warn)' : 'var(--accent2)'};">
-          ${fmt(b.balance)}
-          ${isLow ? '<span class="badge upcoming" style="margin-left:6px;">Low</span>' : ''}
-        </td>
-        <td>
-          <input type="number" value="${threshold}" step="1" min="0"
-            style="width:80px;padding:4px 8px;font-size:12px;"
-            onchange="setAccountThreshold(${i}, this.value)" />
-        </td>
+        <td class="mono" style="color:var(--accent2)">${fmt(b.balance)}</td>
         <td style="color:var(--muted)">${b.updated}</td>
         <td><button class="btn btn-danger btn-sm" onclick="deleteAccount(${i})">Remove</button></td>
       </tr>
-    `;
-    }).join('');
+    `).join('');
   }
 
   function renderTransactions() {
@@ -2536,23 +2255,15 @@
       tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">No transactions yet.</div></td></tr>';
       return;
     }
-    const sorted = [...userData.transactions]
-      .sort((a, b) => (safeParseDate(b.date) - safeParseDate(a.date)) || ((b._seq || 0) - (a._seq || 0)));
-    tbody.innerHTML = sorted.map(t => {
+    tbody.innerHTML = userData.transactions.map(t => {
       const isDeposit = t.type === 'Deposit';
-      const isTransferOut = t.type === 'Transfer Out';
-      const isTransferIn = t.type === 'Transfer In';
-      const isTransfer = isTransferOut || isTransferIn;
-      const badgeClass = isDeposit ? 'paid' : isTransfer ? 'upcoming' : 'overdue';
-      const amountColor = isDeposit ? 'var(--accent2)' : isTransfer ? 'var(--muted)' : 'var(--danger)';
-      const amountPrefix = (isDeposit || isTransferIn) ? '+' : '-';
       return `
         <tr>
           <td>${fmtDate(t.date) || t.date}</td>
-          <td><span class="badge ${badgeClass}">${t.type}</span></td>
+          <td><span class="badge ${isDeposit ? 'paid' : 'upcoming'}">${t.type}</span></td>
           <td>${t.desc}</td>
           <td>${t.account}</td>
-          <td class="mono" style="color:${amountColor};">${amountPrefix}${fmt(t.amount)}</td>
+          <td class="mono" style="color:${isDeposit ? 'var(--accent2)' : 'var(--danger)'};">${isDeposit ? '+' : '-'}${fmt(t.amount)}</td>
         </tr>
       `;
     }).join('');
@@ -2685,7 +2396,7 @@
   }
 
   // ---- Init ----
-  window.onload = () => { applyStoredTheme(); initGoogle(); updateSyncBanner(); document.getElementById('app-version').textContent = APP_VERSION; };
+  window.onload = () => { applyStoredTheme(); initGoogle(); updateSyncBanner(); initPlaidUI(); };
 
   // Catches the "opened the tab the next morning" case. The moment the tab
   // becomes visible with a dead token, silently refresh before the user
@@ -2765,5 +2476,217 @@
     </div>
   </div>
 </div>
+<script>
+/*
+ * Plaid integration for Budget.
+ *
+ * Already installed. Depends on functions and variables (appendRow,
+ * logTransaction, deductFromBalance, TABS, userData, showToast, renderAll,
+ * todayISO) from the main script above, so it must load after it, on the
+ * same page. Do not put a literal closing script tag inside a comment
+ * anywhere in this file, the HTML parser doesn't understand JS comments
+ * and will end the script block early if it sees one.
+ */
+
+const PLAID_WORKER_URL = "https://budget-plaid-worker.tcghunters.workers.dev";
+const PLAID_WORKER_KEY = "PCWCG7KYTAOWUQ8Z6XZR2J6N8JV49PAS";
+
+async function plaidWorkerFetch(path, options = {}) {
+  const res = await fetch(`${PLAID_WORKER_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": PLAID_WORKER_KEY,
+      ...(options.headers || {}),
+    },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Worker request failed: ${res.status}`);
+  return data;
+}
+
+// ---- Applying a Plaid transaction the same way addExpense() does ----
+
+async function applyPlaidTransaction(t) {
+  if (!t.budget_account) {
+    showToast("Map this transaction to a Budget account first.", "error");
+    return false;
+  }
+  const cat = t.category || "Other";
+  const synced = await appendRow(TABS.expenses, [t.date, t.merchant, cat, t.budget_account, t.amount]);
+  userData.expenses.unshift({ date: t.date, desc: t.merchant, category: cat, account: t.budget_account, amount: t.amount });
+  await logTransaction("Expense", t.merchant, t.budget_account, t.amount);
+  await deductFromBalance(t.budget_account, t.amount);
+  renderAll();
+  await plaidWorkerFetch("/api/plaid/pending/resolve", {
+    method: "POST",
+    body: JSON.stringify({ ids: [t.id] }),
+  });
+  return synced;
+}
+
+async function rejectPlaidTransaction(t) {
+  await plaidWorkerFetch("/api/plaid/pending/resolve", {
+    method: "POST",
+    body: JSON.stringify({ ids: [t.id] }),
+  });
+}
+
+// ---- Linking a new account ----
+
+async function connectBankAccount() {
+  const { link_token } = await plaidWorkerFetch("/api/plaid/link-token", { method: "POST" });
+
+  const handler = Plaid.create({
+    token: link_token,
+    onSuccess: async (public_token, metadata) => {
+      const nickname = metadata.institution ? metadata.institution.name : "Linked account";
+      const { item_id, accounts } = await plaidWorkerFetch("/api/plaid/exchange", {
+        method: "POST",
+        body: JSON.stringify({ public_token, nickname }),
+      });
+      showToast(`${nickname} connected. Map each account below, then it'll start syncing.`, "success");
+      renderAccountMapping(item_id, nickname, accounts);
+      showPlaidPanel();
+    },
+    onExit: (err) => { if (err) console.error("Plaid Link exited:", err); },
+  });
+
+  handler.open();
+}
+
+async function mapPlaidAccount(itemId, accountId, budgetAccount) {
+  await plaidWorkerFetch(`/api/plaid/items/${itemId}/map`, {
+    method: "POST",
+    body: JSON.stringify({ account_id: accountId, budget_account: budgetAccount }),
+  });
+  showToast("Account mapped.", "success");
+}
+
+// ---- Sync + pending queue ----
+
+async function syncPlaidNow() {
+  const { results } = await plaidWorkerFetch("/api/plaid/sync", { method: "POST" });
+  const total = results.reduce((sum, r) => sum + (r.queued || 0), 0);
+  showToast(total ? `${total} new transaction(s) synced.` : "No new transactions.", "success");
+  await loadPendingIntoPanel();
+}
+
+async function loadPendingIntoPanel() {
+  const { pending, mode } = await plaidWorkerFetch("/api/plaid/pending");
+  const modeRadio = document.querySelector(`input[name="plaid-mode"][value="${mode}"]`);
+  if (modeRadio) modeRadio.checked = true;
+
+  // Auto-apply anything already mapped, if mode is "auto".
+  if (mode === "auto") {
+    const ready = pending.filter((t) => t.budget_account);
+    for (const t of ready) {
+      await applyPlaidTransaction(t);
+    }
+  }
+
+  const { pending: stillPending } = await plaidWorkerFetch("/api/plaid/pending");
+  renderPendingList(stillPending);
+}
+
+async function setPlaidMode(mode) {
+  await plaidWorkerFetch("/api/plaid/mode", { method: "POST", body: JSON.stringify({ mode }) });
+  showToast(`Plaid mode set to ${mode}.`, "success");
+  await loadPendingIntoPanel();
+}
+
+// ---- Minimal injected UI (no changes needed to your existing nav/markup) ----
+
+function ensurePlaidPanel() {
+  if (document.getElementById("plaid-panel")) return;
+
+  const btn = document.createElement("button");
+  btn.textContent = "🏦 Bank Sync";
+  btn.style.cssText =
+    "position:fixed;bottom:16px;right:16px;z-index:9998;background:var(--accent);color:#fff;border:none;border-radius:20px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;";
+  btn.onclick = showPlaidPanel;
+  document.body.appendChild(btn);
+
+  const panel = document.createElement("div");
+  panel.id = "plaid-panel";
+  panel.style.cssText =
+    "display:none;position:fixed;bottom:60px;right:16px;width:360px;max-height:70vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;z-index:9998;box-shadow:0 8px 24px rgba(0,0,0,0.3);";
+  panel.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <strong style="font-size:14px;">Bank Sync</strong>
+      <span onclick="document.getElementById('plaid-panel').style.display='none'" style="cursor:pointer;color:var(--muted);">✕</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button onclick="connectBankAccount()" style="flex:1;background:var(--accent2);color:#fff;border:none;border-radius:8px;padding:8px;font-size:12px;font-weight:600;cursor:pointer;">Connect account</button>
+      <button onclick="syncPlaidNow()" style="flex:1;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:12px;font-weight:600;cursor:pointer;">Sync now</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">New transaction handling:</div>
+    <div style="display:flex;gap:14px;margin-bottom:14px;font-size:12px;">
+      <label style="cursor:pointer;"><input type="radio" name="plaid-mode" value="review" onchange="setPlaidMode('review')"> Review queue</label>
+      <label style="cursor:pointer;"><input type="radio" name="plaid-mode" value="auto" onchange="setPlaidMode('auto')"> Auto-apply</label>
+    </div>
+    <div id="plaid-mapping"></div>
+    <div id="plaid-pending-list"></div>
+  `;
+  document.body.appendChild(panel);
+}
+
+function showPlaidPanel() {
+  ensurePlaidPanel();
+  document.getElementById("plaid-panel").style.display = "block";
+  loadPendingIntoPanel();
+}
+
+function renderAccountMapping(itemId, nickname, accounts) {
+  const el = document.getElementById("plaid-mapping");
+  if (!el) return;
+  const budgetAccounts = userData.balances.map((b) => b.account);
+  el.innerHTML =
+    `<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Map ${nickname} accounts:</div>` +
+    accounts
+      .map(
+        (a) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px;">
+        <span>${a.name}${a.mask ? " •••" + a.mask : ""}</span>
+        <select onchange="mapPlaidAccount('${itemId}','${a.account_id}', this.value)" style="font-size:12px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px;">
+          <option value="">Choose account</option>
+          ${budgetAccounts.map((ba) => `<option value="${ba}">${ba}</option>`).join("")}
+        </select>
+      </div>`
+      )
+      .join("");
+}
+
+function renderPendingList(pending) {
+  const el = document.getElementById("plaid-pending-list");
+  if (!el) return;
+  if (!pending.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted);">Nothing waiting.</div>';
+    return;
+  }
+  el.innerHTML =
+    '<div style="font-size:12px;color:var(--muted);margin:10px 0 6px;">Pending:</div>' +
+    pending
+      .map(
+        (t) => `
+      <div style="border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px;font-size:12px;">
+        <div style="display:flex;justify-content:space-between;">
+          <span>${t.merchant}</span>
+          <span class="mono">$${Number(t.amount).toFixed(2)}</span>
+        </div>
+        <div style="color:var(--muted);margin:2px 0 6px;">${t.date} · ${t.account_label}${t.budget_account ? " → " + t.budget_account : " (unmapped)"}</div>
+        <div style="display:flex;gap:6px;">
+          <button onclick='applyPlaidTransaction(${JSON.stringify(t)}).then(() => loadPendingIntoPanel())' style="flex:1;background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px;cursor:pointer;">Approve</button>
+          <button onclick='rejectPlaidTransaction(${JSON.stringify(t)}).then(() => loadPendingIntoPanel())' style="flex:1;background:var(--surface2);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px;cursor:pointer;">Reject</button>
+        </div>
+      </div>`
+      )
+      .join("");
+}
+
+function initPlaidUI() {
+  ensurePlaidPanel();
+}
+</script>
 </body>
 </html>
