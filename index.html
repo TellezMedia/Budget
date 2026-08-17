@@ -1089,6 +1089,11 @@
     budgetData = { targets: [] };
     document.getElementById('app').style.display = 'none';
     document.getElementById('auth-screen').style.display = 'flex';
+    document.querySelectorAll('#plaid-panel, button').forEach(el => {
+      if (el.textContent && el.textContent.includes('Bank Sync')) el.remove();
+    });
+    const panel = document.getElementById('plaid-panel');
+    if (panel) panel.remove();
   }
 
   async function onSignedIn() {
@@ -1119,6 +1124,7 @@
     setDefaultDates();
     updateBudgetMonthLabel();
     showWelcomeIfNeeded();
+    initPlaidUI();
   }
 
   async function fetchProfile() {
@@ -2396,7 +2402,7 @@
   }
 
   // ---- Init ----
-  window.onload = () => { applyStoredTheme(); initGoogle(); updateSyncBanner(); initPlaidUI(); };
+  window.onload = () => { applyStoredTheme(); initGoogle(); updateSyncBanner(); };
 
   // Catches the "opened the tab the next morning" case. The moment the tab
   // becomes visible with a dead token, silently refresh before the user
@@ -2491,6 +2497,49 @@
 const PLAID_WORKER_URL = "https://budget-plaid-worker.tcghunters.workers.dev";
 const PLAID_WORKER_KEY = "PCWCG7KYTAOWUQ8Z6XZR2J6N8JV49PAS";
 
+// Maps Plaid's category strings (checked most-specific first) to your
+// existing Expenses category dropdown. Anything unmatched falls back to
+// "Other", same as picking Other manually in the form.
+const PLAID_CATEGORY_MAP = {
+  FOOD_AND_DRINK_GROCERIES: "Groceries",
+  FOOD_AND_DRINK_RESTAURANT: "Dining Out",
+  FOOD_AND_DRINK_COFFEE: "Dining Out",
+  FOOD_AND_DRINK_VENDING_MACHINES: "Dining Out",
+  FOOD_AND_DRINK: "Food",
+  TRANSPORTATION_GAS: "Gas",
+  TRANSPORTATION_PARKING: "Auto",
+  TRANSPORTATION_PUBLIC_TRANSIT: "Auto",
+  TRANSPORTATION: "Auto",
+  GENERAL_MERCHANDISE_CLOTHING_AND_ACCESSORIES: "Shopping",
+  GENERAL_MERCHANDISE_ELECTRONICS: "Shopping",
+  GENERAL_MERCHANDISE: "Shopping",
+  ENTERTAINMENT: "Entertainment",
+  MEDICAL: "Health",
+  PERSONAL_CARE: "Personal Care",
+  RENT_AND_UTILITIES_GAS_AND_ELECTRICITY: "Utilities",
+  RENT_AND_UTILITIES_TELEPHONE: "Subscriptions",
+  RENT_AND_UTILITIES_INTERNET_AND_CABLE: "Subscriptions",
+  RENT_AND_UTILITIES: "Utilities",
+  GENERAL_SERVICES_STREAMING_SERVICES: "Subscriptions",
+  GENERAL_SERVICES: "Other",
+  HOME_IMPROVEMENT: "Other",
+  LOAN_PAYMENTS: "Other",
+  BANK_FEES: "Other",
+  GOVERNMENT_AND_NON_PROFIT: "Other",
+  TRAVEL: "Other",
+};
+
+function mapPlaidCategory(rawCategory) {
+  if (!rawCategory) return "Other";
+  if (PLAID_CATEGORY_MAP[rawCategory]) return PLAID_CATEGORY_MAP[rawCategory];
+  // Fall back to matching on the broader prefix if the exact detailed
+  // code isn't in the table (Plaid adds new detailed codes over time).
+  const prefix = Object.keys(PLAID_CATEGORY_MAP).find(
+    (k) => rawCategory.startsWith(k.split("_").slice(0, 2).join("_"))
+  );
+  return prefix ? PLAID_CATEGORY_MAP[prefix] : "Other";
+}
+
 async function plaidWorkerFetch(path, options = {}) {
   const res = await fetch(`${PLAID_WORKER_URL}${path}`, {
     ...options,
@@ -2512,7 +2561,23 @@ async function applyPlaidTransaction(t) {
     showToast("Map this transaction to a Budget account first.", "error");
     return false;
   }
-  const cat = t.category || "Other";
+
+  // Plaid's sign convention: positive amount = money out (a normal
+  // expense), negative amount = money in (a refund or deposit). Route
+  // each through the same app flow a manual entry of that type would use.
+  if (t.amount < 0) {
+    const amt = Math.abs(t.amount);
+    await logTransaction("Deposit", t.merchant, t.budget_account, amt);
+    await addToBalance(t.budget_account, amt);
+    renderAll();
+    await plaidWorkerFetch("/api/plaid/pending/resolve", {
+      method: "POST",
+      body: JSON.stringify({ ids: [t.id] }),
+    });
+    return true;
+  }
+
+  const cat = mapPlaidCategory(t.category);
   const synced = await appendRow(TABS.expenses, [t.date, t.merchant, cat, t.budget_account, t.amount]);
   userData.expenses.unshift({ date: t.date, desc: t.merchant, category: cat, account: t.budget_account, amount: t.amount });
   await logTransaction("Expense", t.merchant, t.budget_account, t.amount);
@@ -2626,6 +2691,7 @@ function ensurePlaidPanel() {
       <label style="cursor:pointer;"><input type="radio" name="plaid-mode" value="auto" onchange="setPlaidMode('auto')"> Auto-apply</label>
     </div>
     <div id="plaid-mapping"></div>
+    <div id="plaid-connected-list"></div>
     <div id="plaid-pending-list"></div>
   `;
   document.body.appendChild(panel);
@@ -2635,6 +2701,35 @@ function showPlaidPanel() {
   ensurePlaidPanel();
   document.getElementById("plaid-panel").style.display = "block";
   loadPendingIntoPanel();
+  renderConnectedItems();
+}
+
+async function renderConnectedItems() {
+  const el = document.getElementById("plaid-connected-list");
+  if (!el) return;
+  const { items } = await plaidWorkerFetch("/api/plaid/items");
+  if (!items.length) {
+    el.innerHTML = "";
+    return;
+  }
+  el.innerHTML =
+    '<div style="font-size:12px;color:var(--muted);margin:10px 0 6px;">Connected:</div>' +
+    items
+      .map(
+        (it) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:6px;">
+        <span>${it.nickname}</span>
+        <button onclick="disconnectPlaidItem('${it.item_id}')" style="background:none;border:1px solid var(--border);color:var(--danger);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">Disconnect</button>
+      </div>`
+      )
+      .join("");
+}
+
+async function disconnectPlaidItem(itemId) {
+  if (!confirm("Disconnect this account? It will stop syncing new transactions.")) return;
+  await plaidWorkerFetch(`/api/plaid/items/${itemId}`, { method: "DELETE" });
+  showToast("Account disconnected.", "success");
+  renderConnectedItems();
 }
 
 function renderAccountMapping(itemId, nickname, accounts) {
@@ -2667,20 +2762,22 @@ function renderPendingList(pending) {
   el.innerHTML =
     '<div style="font-size:12px;color:var(--muted);margin:10px 0 6px;">Pending:</div>' +
     pending
-      .map(
-        (t) => `
+      .map((t) => {
+        const isDeposit = t.amount < 0;
+        const displayAmt = Math.abs(Number(t.amount)).toFixed(2);
+        return `
       <div style="border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px;font-size:12px;">
         <div style="display:flex;justify-content:space-between;">
-          <span>${t.merchant}</span>
-          <span class="mono">$${Number(t.amount).toFixed(2)}</span>
+          <span>${t.merchant} <span class="badge ${isDeposit ? 'paid' : 'upcoming'}" style="margin-left:4px;">${isDeposit ? 'Deposit' : 'Expense'}</span></span>
+          <span class="mono" style="color:${isDeposit ? 'var(--accent2)' : 'var(--danger)'};">${isDeposit ? '+' : '-'}$${displayAmt}</span>
         </div>
         <div style="color:var(--muted);margin:2px 0 6px;">${t.date} · ${t.account_label}${t.budget_account ? " → " + t.budget_account : " (unmapped)"}</div>
         <div style="display:flex;gap:6px;">
           <button onclick='applyPlaidTransaction(${JSON.stringify(t)}).then(() => loadPendingIntoPanel())' style="flex:1;background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px;cursor:pointer;">Approve</button>
           <button onclick='rejectPlaidTransaction(${JSON.stringify(t)}).then(() => loadPendingIntoPanel())' style="flex:1;background:var(--surface2);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px;cursor:pointer;">Reject</button>
         </div>
-      </div>`
-      )
+      </div>`;
+      })
       .join("");
 }
 
