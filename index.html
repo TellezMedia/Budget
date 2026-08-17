@@ -311,6 +311,7 @@
     .list-row-amount { font-family: var(--mono); font-size: 14px; }
     .list-row-amount.red { color: var(--danger); }
     .list-row-amount.green { color: var(--accent2); }
+    .list-row-amount.muted { color: var(--muted); }
 
     .badge {
       display: inline-flex;
@@ -564,7 +565,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <div class="header-brand">Budget</div>
+    <div class="header-brand">Budget <span id="app-version" style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v2.5</span></div>
     <div style="display:flex;align-items:center;margin-left:auto;">
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">&#9790; Dark</button>
       <div class="header-user" onclick="toggleUserMenu()">
@@ -583,6 +584,7 @@
     <div class="nav-tab" onclick="showScreen('expenses', this)">Expenses</div>
     <div class="nav-tab" onclick="showScreen('bills', this)">Bills</div>
     <div class="nav-tab" onclick="showScreen('scheduled', this)">Scheduled</div>
+    <div class="nav-tab" onclick="showScreen('transactions', this)">Transactions</div>
     <div class="nav-tab" onclick="showScreen('balances', this)">Accounts</div>
     <div class="nav-tab" onclick="showScreen('budget', this)">Budget</div>
   </nav>
@@ -592,16 +594,7 @@
     <div id="screen-dashboard" class="screen active">
       <div class="section-title">Overview</div>
       <div class="cards-row" id="balance-cards">
-        <div class="card">
-          <div class="card-label">PNC Checking</div>
-          <div class="card-value green" id="dash-pnc">$0.00</div>
-          <div class="card-sub">Current balance</div>
-        </div>
-        <div class="card">
-          <div class="card-label">Chime</div>
-          <div class="card-value green" id="dash-chime">$0.00</div>
-          <div class="card-sub">Current balance</div>
-        </div>
+        <div id="account-cards-container" style="display:contents"></div>
         <div class="card">
           <div class="card-label">This Month Spent</div>
           <div class="card-value warn" id="dash-spent">$0.00</div>
@@ -610,7 +603,7 @@
         <div class="card">
           <div class="card-label">Total Balance</div>
           <div class="card-value green" id="dash-total">$0.00</div>
-          <div class="card-sub">PNC + Chime combined</div>
+          <div class="card-sub" id="dash-total-sub">All accounts combined</div>
         </div>
       </div>
 
@@ -621,10 +614,10 @@
         </div>
       </div>
 
-      <div class="section-title">Recent expenses</div>
+      <div class="section-title">Recent transactions</div>
       <div class="upcoming-list">
         <div id="recent-expenses-body">
-          <div class="empty-state">No expenses logged yet.</div>
+          <div class="empty-state">No transactions logged yet.</div>
         </div>
       </div>
 
@@ -696,15 +689,12 @@
           </div>
           <div class="form-group">
             <label>Account</label>
-            <select id="exp-account">
-              <option>PNC</option>
-              <option>Chime</option>
-              <option>Cash</option>
-              <option>Credit Card</option>
+            <select id="exp-account" class="account-select" data-extra="Cash,Credit Card">
             </select>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="addExpense()">Save expense</button>
+        <button class="btn btn-primary" id="exp-submit-btn" onclick="saveExpense()">Save expense</button>
+        <button class="btn btn-secondary" id="exp-cancel-btn" onclick="cancelEditExpense()" style="display:none;">Cancel edit</button>
       </div>
 
       <div class="data-table">
@@ -745,10 +735,7 @@
           </div>
           <div class="form-group">
             <label>Account</label>
-            <select id="bill-account">
-              <option>PNC</option>
-              <option>Chime</option>
-              <option>Auto-pay</option>
+            <select id="bill-account" class="account-select" data-extra="Auto-pay">
             </select>
           </div>
           <div class="form-group">
@@ -761,7 +748,8 @@
             </select>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="addBill()">Save bill</button>
+        <button class="btn btn-primary" id="bill-submit-btn" onclick="saveBill()">Save bill</button>
+        <button class="btn btn-secondary" id="bill-cancel-btn" onclick="cancelEditBill()" style="display:none;">Cancel edit</button>
       </div>
 
       <div class="data-table">
@@ -803,14 +791,12 @@
           </div>
           <div class="form-group">
             <label>Account</label>
-            <select id="sched-account">
-              <option>PNC</option>
-              <option>Chime</option>
-              <option>Auto-pay</option>
+            <select id="sched-account" class="account-select" data-extra="Auto-pay">
             </select>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="addScheduled()">Save payment</button>
+        <button class="btn btn-primary" id="sched-submit-btn" onclick="saveScheduled()">Save payment</button>
+        <button class="btn btn-secondary" id="sched-cancel-btn" onclick="cancelEditScheduled()" style="display:none;">Cancel edit</button>
       </div>
 
       <div class="data-table">
@@ -850,42 +836,21 @@
         <button class="btn btn-primary" onclick="addBalance()">Set balance</button>
       </div>
 
-      <div class="form-card">
-        <div class="form-title">Log a deposit</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Description</label>
-            <input type="text" id="dep-desc" placeholder="Paycheck, transfer..." />
-          </div>
-          <div class="form-group">
-            <label>Amount</label>
-            <input type="number" id="dep-amount" placeholder="0.00" step="0.01" />
-          </div>
-          <div class="form-group">
-            <label>Account</label>
-            <select id="dep-account">
-              <option>PNC</option>
-              <option>Chime</option>
-              <option>Cash</option>
-            </select>
-          </div>
-        </div>
-        <button class="btn btn-primary" onclick="addDeposit()">Log deposit</button>
-      </div>
-
       <div class="data-table" style="margin-bottom:24px;">
         <table>
           <thead>
             <tr>
               <th>Account</th>
+              <th>Color</th>
               <th>Starting Balance</th>
               <th>Current Balance</th>
+              <th>Alert Below</th>
               <th>Last Updated</th>
               <th></th>
             </tr>
           </thead>
           <tbody id="balances-tbody">
-            <tr><td colspan="4"><div class="empty-state">No accounts yet.</div></td></tr>
+            <tr><td colspan="7"><div class="empty-state">No accounts yet.</div></td></tr>
           </tbody>
         </table>
       </div>
@@ -899,6 +864,55 @@
           <button class="btn btn-secondary" onclick="balanceTransactionsCheck()">Run check</button>
         </div>
         <div id="balance-check-results"><div class="empty-state" style="padding:16px 0;">Click Run check to verify your balances.</div></div>
+      </div>
+    </div>
+
+    <!-- TRANSACTIONS -->
+    <div id="screen-transactions" class="screen">
+      <div class="form-card">
+        <div class="form-title">Log a deposit</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Description</label>
+            <input type="text" id="dep-desc" placeholder="Paycheck, transfer..." />
+          </div>
+          <div class="form-group">
+            <label>Amount</label>
+            <input type="number" id="dep-amount" placeholder="0.00" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>Account</label>
+            <select id="dep-account" class="account-select" data-extra="Cash">
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="addDeposit()">Log deposit</button>
+      </div>
+
+      <div class="form-card">
+        <div class="form-title">Move money between accounts</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:16px;margin-top:-8px;">Transfers move money between your own accounts. They never count as spending and never appear in your Budget totals.</p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>From</label>
+            <select id="xfer-from" class="account-select" data-extra="">
+            </select>
+          </div>
+          <div class="form-group">
+            <label>To</label>
+            <select id="xfer-to" class="account-select" data-extra="">
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Amount</label>
+            <input type="number" id="xfer-amount" placeholder="0.00" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>Description (optional)</label>
+            <input type="text" id="xfer-desc" placeholder="Move to savings..." />
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="transferMoney()">Move money</button>
       </div>
 
       <div class="section-title">Transaction history</div>
@@ -1018,6 +1032,8 @@
   const BUDGET_CATEGORIES = ['Food','Gas','Groceries','Entertainment','Shopping','Health','Utilities','Subscriptions','Dining Out','Personal Care','Auto','Other'];
 
   const PIE_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c','#4ade80','#e879f9'];
+  const ACCOUNT_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c'];
+  const APP_VERSION = 'v2.5.2';
 
   let tokenClient;
   let accessToken = null;
@@ -1058,12 +1074,6 @@
     }
     if (authInFlight) return;
     authInFlight = true;
-    // This is a user-initiated sign in, not a background refresh. It must be
-    // allowed to show the account picker and consent screen, because at this
-    // point there may be no active Google grant to silently reuse. Using
-    // prompt: '' here was the bug: it demanded a token with no UI, found
-    // nothing to approve silently, and the app read that as a session
-    // expiring when the person was never signed in yet.
     const originalCallback = tokenClient.callback;
     tokenClient.callback = async (resp) => {
       tokenClient.callback = originalCallback;
@@ -1089,17 +1099,14 @@
     budgetData = { targets: [] };
     document.getElementById('app').style.display = 'none';
     document.getElementById('auth-screen').style.display = 'flex';
-    document.querySelectorAll('#plaid-panel, button').forEach(el => {
-      if (el.textContent && el.textContent.includes('Bank Sync')) el.remove();
-    });
     const panel = document.getElementById('plaid-panel');
     if (panel) panel.remove();
+    document.querySelectorAll('button').forEach(el => {
+      if (el.textContent && el.textContent.includes('Bank Sync')) el.remove();
+    });
   }
 
   async function onSignedIn() {
-    // Switch to the app immediately. Everything after this is enhancement,
-    // not a requirement for being signed in, and must never be able to
-    // undo this screen switch or force a false "session expired" state.
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('app').style.flexDirection = 'column';
@@ -1108,7 +1115,6 @@
     try {
       profile = await fetchProfile();
     } catch (e) {
-      // Fetching your name/avatar is cosmetic. Never let it take down sign-in.
       profile = {};
     }
     const initials = (profile.name || 'U').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
@@ -1117,7 +1123,7 @@
 
     await ensureSheet();
     await ensureBudgetSheet();
-    await flushQueue();       // push anything that failed to sync last session
+    await flushQueue();
     await loadAllData();
     await loadBudgetData();
     renderDashboard();
@@ -1138,9 +1144,6 @@
     return !!accessToken && Date.now() < tokenExpiresAt;
   }
 
-  // Silently refreshes the token if expired. Resolves when a valid token exists.
-  // Rejects if Google cannot re-auth without user interaction, or if nothing
-  // comes back within 8 seconds (blocked popup, closed tab, dead network).
   function ensureToken() {
     if (isTokenValid()) return Promise.resolve();
     if (authInFlight) return Promise.reject(new Error('sign-in already in progress'));
@@ -1167,9 +1170,6 @@
         resolve();
       };
       try {
-        // prompt: '' = no popup if the Google session is still alive. This is
-        // safe here because ensureToken only ever runs for a session that was
-        // already established, unlike the button-driven signIn() above.
         tokenClient.requestAccessToken({ prompt: '' });
       } catch (e) {
         clearTimeout(timer);
@@ -1202,7 +1202,6 @@
     opts.headers = { ...(opts.headers || {}), Authorization: 'Bearer ' + accessToken };
     let res = await fetch(url, opts);
     if (res.status === 401) {
-      // Token was revoked or died early. Force one silent refresh and retry once.
       tokenExpiresAt = 0;
       try {
         await ensureToken();
@@ -1221,7 +1220,6 @@
   }
 
   async function ensureSheet() {
-    // Search for existing sheet
     const search = await gFetch(
       `https://www.googleapis.com/drive/v3/files?q=name='${SHEET_TITLE}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false&fields=files(id,name)`
     );
@@ -1231,7 +1229,6 @@
       await ensureTabs();
       return;
     }
-    // Create new sheet
     const create = await gFetch('https://sheets.googleapis.com/v4/spreadsheets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1263,7 +1260,6 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests })
       });
-      // Only write headers for newly created tabs, not existing ones
       await addHeadersForTabs(newTabs);
     }
   }
@@ -1367,7 +1363,6 @@
     const spending = getMonthlySpendingByCategory();
     const tbody = document.getElementById('budget-tbody');
 
-    // Gather all categories with either a target or spending
     const allCats = new Set([
       ...budgetData.targets.map(t => t.category),
       ...Object.keys(spending)
@@ -1413,7 +1408,6 @@
       </tr>
     `).join('');
 
-    // Draw pie chart
     const labels = rows.map(r => r.cat);
     const values = rows.map(r => r.spent);
     drawPieChart(labels, values);
@@ -1458,14 +1452,12 @@
       startAngle += slice;
     });
 
-    // Center hole for donut
     ctx.beginPath();
     ctx.arc(W/2, H/2, W/4, 0, Math.PI * 2);
     const bg = document.body.classList.contains('light') ? '#f4f6fb' : '#181c27';
     ctx.fillStyle = bg;
     ctx.fill();
 
-    // Center text
     ctx.fillStyle = document.body.classList.contains('light') ? '#1a2035' : '#e4e8f0';
     ctx.font = 'bold 14px Inter, sans-serif';
     ctx.textAlign = 'center';
@@ -1487,7 +1479,7 @@
     [TABS.expenses]:     [['Date','Description','Category','Account','Amount']],
     [TABS.bills]:        [['Name','Amount','DueDay','Account','Frequency']],
     [TABS.scheduled]:    [['Name','Amount','DueDate','Account','Status']],
-    [TABS.balances]:     [['Account','StartingBalance','CurrentBalance','LastUpdated']],
+    [TABS.balances]:     [['Account','StartingBalance','CurrentBalance','LastUpdated','Color','LowBalanceThreshold']],
     [TABS.transactions]: [['Date','Type','Description','Account','Amount']]
   };
 
@@ -1514,8 +1506,6 @@
   }
 
   // ---- Offline / failed-write queue ----
-  // Writes that fail (dead session, no signal in a store, API hiccup) are queued
-  // in localStorage and flushed automatically after the next successful auth.
 
   const QUEUE_KEY = 'budget_pending_writes';
 
@@ -1567,20 +1557,17 @@
         } else if (item.kind === 'update') {
           await rawUpdateCell(item.tab, item.rowIndex, item.colIndex, item.value);
         }
-        // Remove only after confirmed success
         const rest = getQueue().slice(1);
         setQueue(rest);
       }
       showToast('All pending entries synced to your sheet.', 'success');
     } catch (e) {
-      // Leave remaining items queued. Banner stays visible.
     } finally {
       flushing = false;
       updateSyncBanner();
     }
   }
 
-  // Raw write, throws on any failure
   async function rawAppend(tab, row) {
     const res = await gFetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
@@ -1594,7 +1581,6 @@
     return res;
   }
 
-  // Public append: succeeds, or queues the write and warns. Never lies.
   async function appendRow(tab, row) {
     try {
       await rawAppend(tab, row);
@@ -1607,13 +1593,12 @@
   }
 
   async function readSheet(tab) {
-    const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}`);
+    const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}?_=${Date.now()}`, { cache: 'no-store' });
     const data = await r.json();
-    return (data.values || []).slice(1); // skip header row
+    return (data.values || []).slice(1);
   }
 
   async function deleteRow(tab, rowIndex) {
-    // rowIndex is 0-based from our data array, +1 for header, +1 for 1-based = +2
     const sheetMeta = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`);
     const meta = await sheetMeta.json();
     const sheetObj = meta.sheets.find(s => s.properties.title === tab);
@@ -1634,7 +1619,7 @@
 
   async function rawUpdateCell(tab, rowIndex, colIndex, value) {
     const col = String.fromCharCode(65 + colIndex);
-    const row = rowIndex + 2; // +1 header +1 1-based
+    const row = rowIndex + 2;
     const res = await gFetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}!${col}${row}?valueInputOption=RAW`,
       {
@@ -1672,34 +1657,78 @@
       readSheet(TABS.balances),
       readSheet(TABS.transactions)
     ]);
-    userData.expenses     = expenses.map(r => ({ date: r[0], desc: r[1], category: r[2], account: r[3], amount: parseFloat(r[4]) || 0 }));
+    userData.expenses     = expenses.map((r, i) => ({ date: r[0], desc: r[1], category: r[2], account: r[3], amount: parseFloat(r[4]) || 0, _seq: i }));
     userData.bills        = bills.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, day: r[2], account: r[3], freq: r[4] }));
     userData.scheduled    = scheduled.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, date: r[2], account: r[3], status: r[4] || 'Upcoming' }));
     userData.balances     = balances.map(r => {
-      // Support both old 3-column schema (Account, Balance, LastUpdated)
-      // and new 4-column schema (Account, StartingBalance, CurrentBalance, LastUpdated)
       const isNewSchema = r.length >= 4;
       return {
         account: r[0],
         startingBalance: isNewSchema ? (parseFloat(r[1]) || 0) : (parseFloat(r[1]) || 0),
         balance: isNewSchema ? (parseFloat(r[2]) || 0) : (parseFloat(r[1]) || 0),
-        updated: isNewSchema ? r[3] : r[2]
+        updated: isNewSchema ? r[3] : r[2],
+        color: (isNewSchema && r[4]) ? r[4] : null,
+        lowBalanceThreshold: (r[5] !== undefined && r[5] !== '') ? (parseFloat(r[5]) || 0) : 100
       };
     });
-    userData.transactions = transactions.map(r => ({ date: r[0], type: r[1], desc: r[2], account: r[3], amount: parseFloat(r[4]) || 0 }));
+    await ensureAccountColors();
+    userData.transactions = transactions.map((r, i) => ({ date: r[0], type: r[1], desc: r[2], account: r[3], amount: parseFloat(r[4]) || 0, _seq: i }));
     renderAll();
   }
 
   // ---- Add records ----
 
+  function usedAccountColors() {
+    return new Set(userData.balances.map(b => b.color).filter(Boolean));
+  }
+
+  function nextAvailableColor() {
+    const used = usedAccountColors();
+    return ACCOUNT_COLORS.find(c => !used.has(c)) || ACCOUNT_COLORS[0];
+  }
+
+  async function ensureAccountColors() {
+    for (let i = 0; i < userData.balances.length; i++) {
+      if (!userData.balances[i].color) {
+        const color = nextAvailableColor();
+        userData.balances[i].color = color;
+        await updateCell(TABS.balances, i, 4, color);
+      }
+    }
+  }
+
+  async function setAccountColor(index, color) {
+    const takenBy = userData.balances.findIndex((b, i) => i !== index && b.color === color);
+    if (takenBy >= 0) {
+      showToast('That color is already used by ' + userData.balances[takenBy].account + '.', 'error');
+      renderBalances();
+      return;
+    }
+    userData.balances[index].color = color;
+    await updateCell(TABS.balances, index, 4, color);
+    renderAll();
+  }
+
+  async function setAccountThreshold(index, value) {
+    const threshold = parseFloat(value);
+    if (isNaN(threshold) || threshold < 0) {
+      showToast('Enter a valid low balance amount.', 'error');
+      renderBalances();
+      return;
+    }
+    userData.balances[index].lowBalanceThreshold = threshold;
+    await updateCell(TABS.balances, index, 5, threshold);
+    renderAll();
+  }
+
   async function deductFromBalance(accountName, amount) {
     if (!accountName || !amount) return;
     const idx = userData.balances.findIndex(b => b.account.toLowerCase() === accountName.toLowerCase());
-    if (idx < 0) return; // no matching account on file
+    if (idx < 0) return;
     const newBal = userData.balances[idx].balance - amount;
     const today = todayISO();
-    await updateCell(TABS.balances, idx, 1, newBal);
-    await updateCell(TABS.balances, idx, 2, today);
+    await updateCell(TABS.balances, idx, 2, newBal);
+    await updateCell(TABS.balances, idx, 3, today);
     userData.balances[idx].balance = newBal;
     userData.balances[idx].updated = today;
   }
@@ -1710,13 +1739,15 @@
     if (idx < 0) return;
     const newBal = userData.balances[idx].balance + amount;
     const today = todayISO();
-    await updateCell(TABS.balances, idx, 1, newBal);
-    await updateCell(TABS.balances, idx, 2, today);
+    await updateCell(TABS.balances, idx, 2, newBal);
+    await updateCell(TABS.balances, idx, 3, today);
     userData.balances[idx].balance = newBal;
     userData.balances[idx].updated = today;
   }
 
-  async function addExpense() {
+  let editingExpenseIndex = null;
+
+  async function saveExpense() {
     const d = v('exp-date'), desc = v('exp-desc'), amt = parseFloat(v('exp-amount')), acc = v('exp-account');
     let cat = v('exp-category');
     if (cat === 'Other') {
@@ -1724,8 +1755,26 @@
       if (custom) cat = custom;
     }
     if (!d || !desc || !amt) { showToast('Fill in date, description, and amount.', 'error'); return; }
+
+    if (editingExpenseIndex !== null) {
+      const i = editingExpenseIndex;
+      const old = userData.expenses[i];
+      await addToBalance(old.account, old.amount);
+      await deductFromBalance(acc, amt);
+      await updateCell(TABS.expenses, i, 0, d);
+      await updateCell(TABS.expenses, i, 1, desc);
+      await updateCell(TABS.expenses, i, 2, cat);
+      await updateCell(TABS.expenses, i, 3, acc);
+      await updateCell(TABS.expenses, i, 4, amt);
+      userData.expenses[i] = { ...old, date: d, desc, category: cat, account: acc, amount: amt };
+      cancelEditExpense();
+      renderAll();
+      showToast('Expense updated.', 'success');
+      return;
+    }
+
     const synced = await appendRow(TABS.expenses, [d, desc, cat, acc, amt]);
-    userData.expenses.unshift({ date: d, desc, category: cat, account: acc, amount: amt });
+    userData.expenses.unshift({ date: d, desc, category: cat, account: acc, amount: amt, _seq: Date.now() });
     await logTransaction('Expense', desc, acc, amt);
     await deductFromBalance(acc, amt);
     clear('exp-desc'); clear('exp-amount');
@@ -1735,22 +1784,125 @@
     if (synced) showToast('Expense saved and deducted from ' + acc + '.', 'success');
   }
 
-  async function addBill() {
+  function editExpense(i) {
+    const e = userData.expenses[i];
+    editingExpenseIndex = i;
+    document.getElementById('exp-date').value = e.date;
+    document.getElementById('exp-desc').value = e.desc;
+    document.getElementById('exp-amount').value = e.amount;
+    document.getElementById('exp-account').value = e.account;
+    const catSelect = document.getElementById('exp-category');
+    const knownCategory = [...catSelect.options].some(o => o.value === e.category);
+    if (knownCategory) {
+      catSelect.value = e.category;
+    } else {
+      catSelect.value = 'Other';
+      document.getElementById('exp-custom-category').value = e.category;
+    }
+    toggleCustomCat();
+    document.getElementById('exp-submit-btn').textContent = 'Update expense';
+    document.getElementById('exp-cancel-btn').style.display = 'inline-block';
+    document.getElementById('exp-desc').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function cancelEditExpense() {
+    editingExpenseIndex = null;
+    clear('exp-date'); clear('exp-desc'); clear('exp-amount');
+    const customInput = document.getElementById('exp-custom-category');
+    if (customInput) customInput.value = '';
+    document.getElementById('exp-submit-btn').textContent = 'Save expense';
+    document.getElementById('exp-cancel-btn').style.display = 'none';
+  }
+
+  let editingBillIndex = null;
+
+  async function saveBill() {
     const name = v('bill-name'), amt = parseFloat(v('bill-amount')), day = v('bill-day'), acc = v('bill-account'), freq = v('bill-freq');
     if (!name || !amt || !day) { showToast('Fill in name, amount, and due day.', 'error'); return; }
+
+    if (editingBillIndex !== null) {
+      const i = editingBillIndex;
+      await updateCell(TABS.bills, i, 0, name);
+      await updateCell(TABS.bills, i, 1, amt);
+      await updateCell(TABS.bills, i, 2, day);
+      await updateCell(TABS.bills, i, 3, acc);
+      await updateCell(TABS.bills, i, 4, freq);
+      userData.bills[i] = { name, amount: amt, day, account: acc, freq };
+      cancelEditBill();
+      renderAll();
+      showToast('Bill updated.', 'success');
+      return;
+    }
+
     await appendRow(TABS.bills, [name, amt, day, acc, freq]);
     userData.bills.push({ name, amount: amt, day, account: acc, freq });
     clear('bill-name'); clear('bill-amount'); clear('bill-day');
     renderAll(); showToast('Bill saved.', 'success');
   }
 
-  async function addScheduled() {
+  function editBill(i) {
+    const b = userData.bills[i];
+    editingBillIndex = i;
+    document.getElementById('bill-name').value = b.name;
+    document.getElementById('bill-amount').value = b.amount;
+    document.getElementById('bill-day').value = b.day;
+    document.getElementById('bill-account').value = b.account;
+    document.getElementById('bill-freq').value = b.freq;
+    document.getElementById('bill-submit-btn').textContent = 'Update bill';
+    document.getElementById('bill-cancel-btn').style.display = 'inline-block';
+    document.getElementById('bill-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function cancelEditBill() {
+    editingBillIndex = null;
+    clear('bill-name'); clear('bill-amount'); clear('bill-day');
+    document.getElementById('bill-submit-btn').textContent = 'Save bill';
+    document.getElementById('bill-cancel-btn').style.display = 'none';
+  }
+
+  let editingScheduledIndex = null;
+
+  async function saveScheduled() {
     const name = v('sched-name'), amt = parseFloat(v('sched-amount')), date = v('sched-date'), acc = v('sched-account');
     if (!name || !amt || !date) { showToast('Fill in name, amount, and due date.', 'error'); return; }
+
+    if (editingScheduledIndex !== null) {
+      const i = editingScheduledIndex;
+      const old = userData.scheduled[i];
+      await updateCell(TABS.scheduled, i, 0, name);
+      await updateCell(TABS.scheduled, i, 1, amt);
+      await updateCell(TABS.scheduled, i, 2, date);
+      await updateCell(TABS.scheduled, i, 3, acc);
+      userData.scheduled[i] = { ...old, name, amount: amt, date, account: acc };
+      cancelEditScheduled();
+      renderAll();
+      showToast('Payment updated.', 'success');
+      return;
+    }
+
     await appendRow(TABS.scheduled, [name, amt, date, acc, 'Upcoming']);
     userData.scheduled.push({ name, amount: amt, date, account: acc, status: 'Upcoming' });
     clear('sched-name'); clear('sched-amount'); clear('sched-date');
     renderAll(); showToast('Payment saved.', 'success');
+  }
+
+  function editScheduled(i) {
+    const p = userData.scheduled[i];
+    editingScheduledIndex = i;
+    document.getElementById('sched-name').value = p.name;
+    document.getElementById('sched-amount').value = p.amount;
+    document.getElementById('sched-date').value = p.date;
+    document.getElementById('sched-account').value = p.account;
+    document.getElementById('sched-submit-btn').textContent = 'Update payment';
+    document.getElementById('sched-cancel-btn').style.display = 'inline-block';
+    document.getElementById('sched-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function cancelEditScheduled() {
+    editingScheduledIndex = null;
+    clear('sched-name'); clear('sched-amount'); clear('sched-date');
+    document.getElementById('sched-submit-btn').textContent = 'Save payment';
+    document.getElementById('sched-cancel-btn').style.display = 'none';
   }
 
   async function addBalance() {
@@ -1759,15 +1911,15 @@
     const today = todayISO();
     const existing = userData.balances.findIndex(b => b.account.toLowerCase() === acc.toLowerCase());
     if (existing >= 0) {
-      // Update current balance only, preserve starting balance
       await updateCell(TABS.balances, existing, 2, bal);
       await updateCell(TABS.balances, existing, 3, today);
       userData.balances[existing].balance = bal;
       userData.balances[existing].updated = today;
     } else {
-      // New account: starting balance = current balance
-      await appendRow(TABS.balances, [acc, bal, bal, today]);
-      userData.balances.push({ account: acc, startingBalance: bal, balance: bal, updated: today });
+      const color = nextAvailableColor();
+      const threshold = 100;
+      await appendRow(TABS.balances, [acc, bal, bal, today, color, threshold]);
+      userData.balances.push({ account: acc, startingBalance: bal, balance: bal, updated: today, color, lowBalanceThreshold: threshold });
     }
     clear('bal-account'); clear('bal-amount');
     renderAll(); showToast('Starting balance set for ' + acc + '.', 'success');
@@ -1776,7 +1928,7 @@
   async function logTransaction(type, desc, account, amount) {
     const today = todayISO();
     await appendRow(TABS.transactions, [today, type, desc, account, amount]);
-    userData.transactions.unshift({ date: today, type, desc, account, amount });
+    userData.transactions.unshift({ date: today, type, desc, account, amount, _seq: Date.now() });
   }
 
   async function addDeposit() {
@@ -1786,6 +1938,20 @@
     await addToBalance(acc, amt);
     clear('dep-desc'); clear('dep-amount');
     renderAll(); showToast('Deposit of ' + fmt(amt) + ' added to ' + acc + '.', 'success');
+  }
+
+  async function transferMoney() {
+    const from = v('xfer-from'), to = v('xfer-to'), amt = parseFloat(v('xfer-amount'));
+    let desc = v('xfer-desc').trim();
+    if (!from || !to || !amt) { showToast('Fill in from, to, and amount.', 'error'); return; }
+    if (from === to) { showToast('Pick two different accounts to move money between.', 'error'); return; }
+    if (!desc) desc = 'Transfer between ' + from + ' and ' + to;
+    await logTransaction('Transfer Out', desc, from, amt);
+    await logTransaction('Transfer In', desc, to, amt);
+    await deductFromBalance(from, amt);
+    await addToBalance(to, amt);
+    clear('xfer-desc'); clear('xfer-amount');
+    renderAll(); showToast(fmt(amt) + ' moved from ' + from + ' to ' + to + '.', 'success');
   }
 
   async function balanceTransactionsCheck() {
@@ -1798,10 +1964,16 @@
       const deposits = userData.transactions
         .filter(t => t.type === 'Deposit' && t.account.toLowerCase() === bal.account.toLowerCase())
         .reduce((s, t) => s + t.amount, 0);
-      const expected = start - expenses + deposits;
+      const transfersOut = userData.transactions
+        .filter(t => t.type === 'Transfer Out' && t.account.toLowerCase() === bal.account.toLowerCase())
+        .reduce((s, t) => s + t.amount, 0);
+      const transfersIn = userData.transactions
+        .filter(t => t.type === 'Transfer In' && t.account.toLowerCase() === bal.account.toLowerCase())
+        .reduce((s, t) => s + t.amount, 0);
+      const expected = start - expenses + deposits - transfersOut + transfersIn;
       const current = bal.balance;
       const diff = Math.abs(expected - current);
-      results.push({ account: bal.account, start, expenses, deposits, expected, current, diff, ok: diff < 0.02 });
+      results.push({ account: bal.account, start, expenses, deposits, transfersOut, transfersIn, expected, current, diff, ok: diff < 0.02 });
     }
 
     const el = document.getElementById('balance-check-results');
@@ -1821,6 +1993,8 @@
           <div>Starting balance: <span style="color:var(--text);">${fmt(r.start)}</span></div>
           <div>Total deposits: <span style="color:var(--accent2);">+${fmt(r.deposits)}</span></div>
           <div>Total expenses: <span style="color:var(--danger);">-${fmt(r.expenses)}</span></div>
+          <div>Transfers in: <span style="color:var(--accent2);">+${fmt(r.transfersIn)}</span></div>
+          <div>Transfers out: <span style="color:var(--muted);">-${fmt(r.transfersOut)}</span></div>
           <div>Expected balance: <span style="color:var(--text);">${fmt(r.expected)}</span></div>
           <div>App balance: <span style="color:var(--text);">${fmt(r.current)}</span></div>
           ${!r.ok ? `<div><button class="btn btn-primary btn-sm" onclick="fixBalance('${r.account}', ${r.expected})">Correct to ${fmt(r.expected)}</button></div>` : ''}
@@ -1846,32 +2020,26 @@
     if (!confirm('Are you sure you want to reset and clear all entries? This cannot be undone.')) return;
     showToast('Resetting... please wait.', 'success');
 
-    // Clear expenses and transactions from sheet
     const expRows = userData.expenses.length;
     const txRows = userData.transactions.length;
 
-    // Clear bill paid statuses from localStorage
     try {
       const keys = Object.keys(localStorage).filter(k => k.startsWith('billpaid:'));
       keys.forEach(k => localStorage.removeItem(k));
     } catch(e) {}
 
-    // Wipe expenses sheet rows (keep header)
     if (expRows > 0) {
       await wipeSheetRows(TABS.expenses, expRows);
     }
-    // Wipe transactions sheet rows (keep header)
     if (txRows > 0) {
       await wipeSheetRows(TABS.transactions, txRows);
     }
-    // Reset scheduled payment statuses to Upcoming
     for (let i = 0; i < userData.scheduled.length; i++) {
       if (userData.scheduled[i].status === 'Paid') {
         await updateCell(TABS.scheduled, i, 4, 'Upcoming');
         userData.scheduled[i].status = 'Upcoming';
       }
     }
-    // Wipe balances
     if (userData.balances.length > 0) {
       await wipeSheetRows(TABS.balances, userData.balances.length);
     }
@@ -1884,7 +2052,6 @@
   }
 
   async function wipeSheetRows(tab, count) {
-    // Get sheet ID number for batch delete
     const meta = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`);
     const metaData = await meta.json();
     const sheetObj = metaData.sheets.find(s => s.properties.title === tab);
@@ -1948,7 +2115,20 @@
 
   // ---- Render ----
 
+  function populateAccountSelects() {
+    const selects = document.querySelectorAll('select.account-select');
+    const accountNames = userData.balances.map(b => b.account).filter(Boolean);
+    selects.forEach(sel => {
+      const extras = (sel.dataset.extra || '').split(',').map(s => s.trim()).filter(Boolean);
+      const previous = sel.value;
+      const options = [...accountNames, ...extras];
+      sel.innerHTML = options.map(a => `<option>${a}</option>`).join('');
+      if (options.includes(previous)) sel.value = previous;
+    });
+  }
+
   function renderAll() {
+    populateAccountSelects();
     renderDashboard();
     renderExpenses();
     renderBills();
@@ -1964,23 +2144,29 @@
     const now = new Date();
     if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
 
-    // Balances
-    const pnc = userData.balances.find(b => b.account.toLowerCase().includes('pnc'));
-    const chime = userData.balances.find(b => b.account.toLowerCase().includes('chime'));
-    document.getElementById('dash-pnc').textContent = fmt(pnc ? pnc.balance : 0);
-    document.getElementById('dash-chime').textContent = fmt(chime ? chime.balance : 0);
+    const cardsContainer = document.getElementById('account-cards-container');
+    cardsContainer.innerHTML = userData.balances.map(b => {
+      const threshold = b.lowBalanceThreshold ?? 100;
+      const isLow = b.balance < threshold;
+      return `
+      <div class="card">
+        <div class="card-label" style="color:${b.color || 'inherit'};">${b.account}</div>
+        <div class="card-value ${isLow ? 'warn' : 'green'}">${fmt(b.balance)}</div>
+        <div class="card-sub">${isLow ? 'Below ' + fmt(threshold) + ' alert' : 'Current balance'}</div>
+      </div>
+    `;
+    }).join('');
 
-    // Total balance
-    const total = (pnc ? pnc.balance : 0) + (chime ? chime.balance : 0);
+    const total = userData.balances.reduce((s, b) => s + b.balance, 0);
     document.getElementById('dash-total').textContent = fmt(total);
+    document.getElementById('dash-total-sub').textContent =
+      userData.balances.map(b => b.account).join(' + ') + (userData.balances.length ? ' combined' : 'No accounts yet');
 
-    // This month spent
     const monthSpent = userData.expenses
       .filter(e => { const d = safeParseDate(e.date); return !isNaN(d) && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); })
       .reduce((s, e) => s + e.amount, 0);
     document.getElementById('dash-spent').textContent = fmt(monthSpent);
 
-    // Upcoming payments (next 14 days)
     const today = new Date(); today.setHours(0,0,0,0);
     const in14 = new Date(today); in14.setDate(in14.getDate() + 14);
     const upcoming = [];
@@ -2018,24 +2204,32 @@
       `).join('');
     }
 
-    // Recent expenses
-    const recent = userData.expenses.slice(0, 5);
+    const recentTx = [...(userData.transactions || [])]
+      .sort((a, b) => (safeParseDate(b.date) - safeParseDate(a.date)) || ((b._seq || 0) - (a._seq || 0)))
+      .slice(0, 5);
     const reEl = document.getElementById('recent-expenses-body');
-    if (!recent.length) {
-      reEl.innerHTML = '<div class="empty-state">No expenses logged yet.</div>';
+    if (!recentTx.length) {
+      reEl.innerHTML = '<div class="empty-state">No transactions logged yet.</div>';
     } else {
-      reEl.innerHTML = recent.map(e => `
+      reEl.innerHTML = recentTx.map(t => {
+        const isDeposit = t.type === 'Deposit';
+        const isTransferOut = t.type === 'Transfer Out';
+        const isTransferIn = t.type === 'Transfer In';
+        const isTransfer = isTransferOut || isTransferIn;
+        const amountClass = isDeposit ? 'green' : isTransfer ? 'muted' : 'red';
+        const amountPrefix = (isDeposit || isTransferIn) ? '+' : '-';
+        return `
         <div class="list-row">
           <div class="list-row-left">
-            <div class="list-row-name">${e.desc}</div>
-            <div class="list-row-date">${fmtDate(e.date)} · ${e.category} · ${e.account}</div>
+            <div class="list-row-name">${t.desc}</div>
+            <div class="list-row-date">${fmtDate(t.date)} · ${t.type} · ${t.account}</div>
           </div>
-          <div class="list-row-amount red">${fmt(e.amount)}</div>
+          <div class="list-row-amount ${amountClass}">${amountPrefix}${fmt(t.amount)}</div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
-    // Calendar
     renderCalendar();
   }
 
@@ -2060,7 +2254,6 @@
 
     userData.expenses.forEach(e => {
       if (!e.date) return;
-      // Normalize date key to ISO format for consistent calendar lookup
       const d = safeParseDate(e.date);
       const key = isNaN(d) ? e.date : d.toISOString().slice(0,10);
       if (!events[key]) events[key] = [];
@@ -2138,14 +2331,17 @@
       tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No expenses yet.</div></td></tr>';
       return;
     }
-    tbody.innerHTML = userData.expenses.map((e, i) => `
+    const sorted = userData.expenses
+      .map((e, i) => ({ e, i }))
+      .sort((a, b) => (safeParseDate(b.e.date) - safeParseDate(a.e.date)) || ((b.e._seq || 0) - (a.e._seq || 0)));
+    tbody.innerHTML = sorted.map(({ e, i }) => `
       <tr>
         <td>${fmtDate(e.date)}</td>
         <td>${e.desc}</td>
         <td>${e.category}</td>
         <td>${e.account}</td>
         <td class="mono">${fmt(e.amount)}</td>
-        <td><button class="btn btn-danger btn-sm" onclick="deleteExpense(${i})">Remove</button></td>
+        <td><button class="btn btn-secondary btn-sm" onclick="editExpense(${i})">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteExpense(${i})">Remove</button></td>
       </tr>
     `).join('');
   }
@@ -2204,6 +2400,7 @@
           <td>${badge}</td>
           <td style="display:flex;gap:6px;">
             <button class="btn ${btnClass} btn-sm" onclick="markBillPaid(${i})">${btnLabel}</button>
+            <button class="btn btn-secondary btn-sm" onclick="editBill(${i})">Edit</button>
             <button class="btn btn-danger btn-sm" onclick="deleteBill(${i})">Remove</button>
           </td>
         </tr>
@@ -2230,6 +2427,7 @@
           <td><span class="badge ${badge}">${badgeLabel}</span></td>
           <td style="display:flex;gap:6px;">
             ${status !== 'Paid' ? `<button class="btn btn-secondary btn-sm" onclick="markPaid(${i})">Mark paid</button>` : ''}
+            <button class="btn btn-secondary btn-sm" onclick="editScheduled(${i})">Edit</button>
             <button class="btn btn-danger btn-sm" onclick="deleteScheduled(${i})">Remove</button>
           </td>
         </tr>
@@ -2240,18 +2438,46 @@
   function renderBalances() {
     const tbody = document.getElementById('balances-tbody');
     if (!userData.balances.length) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">No accounts yet.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">No accounts yet.</div></td></tr>';
       return;
     }
-    tbody.innerHTML = userData.balances.map((b, i) => `
+    const used = usedAccountColors();
+    tbody.innerHTML = userData.balances.map((b, i) => {
+      const swatches = ACCOUNT_COLORS.map(c => {
+        const isCurrent = c === b.color;
+        const isTaken = used.has(c) && !isCurrent;
+        const ring = isCurrent ? '0 0 0 2px var(--bg), 0 0 0 4px ' + c : 'none';
+        const cursor = isTaken ? 'not-allowed' : 'pointer';
+        const opacity = isTaken ? '0.25' : '1';
+        const click = isTaken ? '' : `onclick="setAccountColor(${i}, '${c}')"`;
+        const title = isTaken ? 'Already used by another account' : c;
+        return `<span ${click} title="${title}" style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${c};cursor:${cursor};opacity:${opacity};box-shadow:${ring};"></span>`;
+      }).join('');
+      const threshold = b.lowBalanceThreshold ?? 100;
+      const isLow = b.balance < threshold;
+      return `
       <tr>
-        <td>${b.account}</td>
+        <td style="color:${b.color || 'inherit'};font-weight:600;">${b.account}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:220px;">
+            ${swatches}
+          </div>
+        </td>
         <td class="mono" style="color:var(--muted)">${fmt(b.startingBalance || 0)}</td>
-        <td class="mono" style="color:var(--accent2)">${fmt(b.balance)}</td>
+        <td class="mono" style="color:${isLow ? 'var(--warn)' : 'var(--accent2)'};">
+          ${fmt(b.balance)}
+          ${isLow ? '<span class="badge upcoming" style="margin-left:6px;">Low</span>' : ''}
+        </td>
+        <td>
+          <input type="number" value="${threshold}" step="1" min="0"
+            style="width:80px;padding:4px 8px;font-size:12px;"
+            onchange="setAccountThreshold(${i}, this.value)" />
+        </td>
         <td style="color:var(--muted)">${b.updated}</td>
         <td><button class="btn btn-danger btn-sm" onclick="deleteAccount(${i})">Remove</button></td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
   }
 
   function renderTransactions() {
@@ -2261,15 +2487,23 @@
       tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">No transactions yet.</div></td></tr>';
       return;
     }
-    tbody.innerHTML = userData.transactions.map(t => {
+    const sorted = [...userData.transactions]
+      .sort((a, b) => (safeParseDate(b.date) - safeParseDate(a.date)) || ((b._seq || 0) - (a._seq || 0)));
+    tbody.innerHTML = sorted.map(t => {
       const isDeposit = t.type === 'Deposit';
+      const isTransferOut = t.type === 'Transfer Out';
+      const isTransferIn = t.type === 'Transfer In';
+      const isTransfer = isTransferOut || isTransferIn;
+      const badgeClass = isDeposit ? 'paid' : isTransfer ? 'upcoming' : 'overdue';
+      const amountColor = isDeposit ? 'var(--accent2)' : isTransfer ? 'var(--muted)' : 'var(--danger)';
+      const amountPrefix = (isDeposit || isTransferIn) ? '+' : '-';
       return `
         <tr>
           <td>${fmtDate(t.date) || t.date}</td>
-          <td><span class="badge ${isDeposit ? 'paid' : 'upcoming'}">${t.type}</span></td>
+          <td><span class="badge ${badgeClass}">${t.type}</span></td>
           <td>${t.desc}</td>
           <td>${t.account}</td>
-          <td class="mono" style="color:${isDeposit ? 'var(--accent2)' : 'var(--danger)'};">${isDeposit ? '+' : '-'}${fmt(t.amount)}</td>
+          <td class="mono" style="color:${amountColor};">${amountPrefix}${fmt(t.amount)}</td>
         </tr>
       `;
     }).join('');
@@ -2285,7 +2519,6 @@
 
   function fmtDate(str) {
     if (!str) return '';
-    // Handle both ISO (2026-07-02) and locale (7/2/2026) formats
     let d;
     if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
       d = new Date(str + 'T00:00:00');
@@ -2349,11 +2582,9 @@
   function toggleTheme() {
     const isCurrentlyLight = document.body.classList.contains('light');
     if (!isCurrentlyLight) {
-      // Going to light mode - show warning
       const overlay = document.getElementById('flashbang-overlay');
       overlay.style.display = 'flex';
     } else {
-      // Going back to dark, no warning needed
       document.body.classList.remove('light');
       document.getElementById('theme-btn').textContent = '🌙 Dark';
       try { localStorage.setItem('budget-theme', 'dark'); } catch(e) {}
@@ -2402,12 +2633,8 @@
   }
 
   // ---- Init ----
-  window.onload = () => { applyStoredTheme(); initGoogle(); updateSyncBanner(); };
+  window.onload = () => { applyStoredTheme(); initGoogle(); updateSyncBanner(); document.getElementById('app-version').textContent = APP_VERSION; };
 
-  // Catches the "opened the tab the next morning" case. The moment the tab
-  // becomes visible with a dead token, silently refresh before the user
-  // touches anything. If silent refresh fails, show the real auth screen
-  // instead of pretending to be signed in.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
     const appVisible = document.getElementById('app').style.display !== 'none';
@@ -2416,7 +2643,6 @@
     }
   });
 
-  // Retry queued writes as soon as connectivity returns
   window.addEventListener('online', () => {
     if (isTokenValid()) flushQueue();
   });
@@ -2485,21 +2711,17 @@
 <script>
 /*
  * Plaid integration for Budget.
- *
- * Already installed. Depends on functions and variables (appendRow,
- * logTransaction, deductFromBalance, TABS, userData, showToast, renderAll,
- * todayISO) from the main script above, so it must load after it, on the
- * same page. Do not put a literal closing script tag inside a comment
- * anywhere in this file, the HTML parser doesn't understand JS comments
- * and will end the script block early if it sees one.
+ * Depends on functions/variables from the main script above (appendRow,
+ * logTransaction, deductFromBalance, addToBalance, TABS, userData,
+ * showToast, renderAll, todayISO), so it must load after it, on the same
+ * page. Do not put a literal closing script tag inside a comment anywhere
+ * in this file, the HTML parser doesn't understand JS comments and will
+ * end the script block early if it sees one.
  */
 
 const PLAID_WORKER_URL = "https://budget-plaid-worker.tcghunters.workers.dev";
 const PLAID_WORKER_KEY = "PCWCG7KYTAOWUQ8Z6XZR2J6N8JV49PAS";
 
-// Maps Plaid's category strings (checked most-specific first) to your
-// existing Expenses category dropdown. Anything unmatched falls back to
-// "Other", same as picking Other manually in the form.
 const PLAID_CATEGORY_MAP = {
   FOOD_AND_DRINK_GROCERIES: "Groceries",
   FOOD_AND_DRINK_RESTAURANT: "Dining Out",
@@ -2532,8 +2754,6 @@ const PLAID_CATEGORY_MAP = {
 function mapPlaidCategory(rawCategory) {
   if (!rawCategory) return "Other";
   if (PLAID_CATEGORY_MAP[rawCategory]) return PLAID_CATEGORY_MAP[rawCategory];
-  // Fall back to matching on the broader prefix if the exact detailed
-  // code isn't in the table (Plaid adds new detailed codes over time).
   const prefix = Object.keys(PLAID_CATEGORY_MAP).find(
     (k) => rawCategory.startsWith(k.split("_").slice(0, 2).join("_"))
   );
@@ -2554,13 +2774,6 @@ async function plaidWorkerFetch(path, options = {}) {
   return data;
 }
 
-// ---- Applying a Plaid transaction the same way addExpense() does ----
-
-// Checks whether this Plaid transaction looks like something already
-// logged by hand: same account, same amount (within a cent), within 3
-// days either direction (bank posting dates can drift a bit from when
-// you actually logged it). Not exact-match only, banks and manual entry
-// dates don't always line up perfectly.
 function findPossibleDuplicate(t) {
   if (!t.budget_account) return null;
   const amt = Math.abs(Number(t.amount));
@@ -2597,14 +2810,11 @@ async function applyPlaidTransaction(t, skipDuplicateCheck) {
 
   if (!skipDuplicateCheck && findPossibleDuplicate(t)) {
     const proceed = confirm(
-      `This looks like it might already be logged (same account, amount, and roughly the same date). Apply anyway?`
+      "This looks like it might already be logged (same account, amount, and roughly the same date). Apply anyway?"
     );
     if (!proceed) return false;
   }
 
-  // Plaid's sign convention: positive amount = money out (a normal
-  // expense), negative amount = money in (a refund or deposit). Route
-  // each through the same app flow a manual entry of that type would use.
   if (t.amount < 0) {
     const amt = Math.abs(t.amount);
     await logTransaction("Deposit", t.merchant, t.budget_account, amt);
@@ -2637,8 +2847,6 @@ async function rejectPlaidTransaction(t) {
   });
 }
 
-// ---- Linking a new account ----
-
 async function connectBankAccount() {
   const { link_token } = await plaidWorkerFetch("/api/plaid/link-token", { method: "POST" });
 
@@ -2668,8 +2876,6 @@ async function mapPlaidAccount(itemId, accountId, budgetAccount) {
   showToast("Account mapped.", "success");
 }
 
-// ---- Sync + pending queue ----
-
 async function syncPlaidNow() {
   const { results } = await plaidWorkerFetch("/api/plaid/sync", { method: "POST" });
   const total = results.reduce((sum, r) => sum + (r.queued || 0), 0);
@@ -2682,8 +2888,6 @@ async function loadPendingIntoPanel() {
   const modeRadio = document.querySelector(`input[name="plaid-mode"][value="${mode}"]`);
   if (modeRadio) modeRadio.checked = true;
 
-  // Auto-apply anything already mapped, if mode is "auto" — but never
-  // auto-apply a suspected duplicate, those always wait for a manual look.
   if (mode === "auto") {
     const ready = pending.filter((t) => t.budget_account && !findPossibleDuplicate(t));
     for (const t of ready) {
@@ -2700,8 +2904,6 @@ async function setPlaidMode(mode) {
   showToast(`Plaid mode set to ${mode}.`, "success");
   await loadPendingIntoPanel();
 }
-
-// ---- Minimal injected UI (no changes needed to your existing nav/markup) ----
 
 function ensurePlaidPanel() {
   if (document.getElementById("plaid-panel")) return;
