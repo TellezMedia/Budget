@@ -2556,10 +2556,50 @@ async function plaidWorkerFetch(path, options = {}) {
 
 // ---- Applying a Plaid transaction the same way addExpense() does ----
 
-async function applyPlaidTransaction(t) {
+// Checks whether this Plaid transaction looks like something already
+// logged by hand: same account, same amount (within a cent), within 3
+// days either direction (bank posting dates can drift a bit from when
+// you actually logged it). Not exact-match only, banks and manual entry
+// dates don't always line up perfectly.
+function findPossibleDuplicate(t) {
+  if (!t.budget_account) return null;
+  const amt = Math.abs(Number(t.amount));
+  const tDate = new Date(t.date + "T00:00:00");
+  const withinWindow = (dateStr) => {
+    const d = new Date(dateStr + "T00:00:00");
+    if (isNaN(d.getTime())) return false;
+    const diffDays = Math.abs((d - tDate) / 86400000);
+    return diffDays <= 3;
+  };
+
+  if (t.amount >= 0) {
+    return userData.expenses.find(
+      (e) =>
+        e.account.toLowerCase() === t.budget_account.toLowerCase() &&
+        Math.abs(e.amount - amt) < 0.01 &&
+        withinWindow(e.date)
+    );
+  }
+  return userData.transactions.find(
+    (tx) =>
+      tx.type === "Deposit" &&
+      tx.account.toLowerCase() === t.budget_account.toLowerCase() &&
+      Math.abs(tx.amount - amt) < 0.01 &&
+      withinWindow(tx.date)
+  );
+}
+
+async function applyPlaidTransaction(t, skipDuplicateCheck) {
   if (!t.budget_account) {
     showToast("Map this transaction to a Budget account first.", "error");
     return false;
+  }
+
+  if (!skipDuplicateCheck && findPossibleDuplicate(t)) {
+    const proceed = confirm(
+      `This looks like it might already be logged (same account, amount, and roughly the same date). Apply anyway?`
+    );
+    if (!proceed) return false;
   }
 
   // Plaid's sign convention: positive amount = money out (a normal
@@ -2642,11 +2682,12 @@ async function loadPendingIntoPanel() {
   const modeRadio = document.querySelector(`input[name="plaid-mode"][value="${mode}"]`);
   if (modeRadio) modeRadio.checked = true;
 
-  // Auto-apply anything already mapped, if mode is "auto".
+  // Auto-apply anything already mapped, if mode is "auto" — but never
+  // auto-apply a suspected duplicate, those always wait for a manual look.
   if (mode === "auto") {
-    const ready = pending.filter((t) => t.budget_account);
+    const ready = pending.filter((t) => t.budget_account && !findPossibleDuplicate(t));
     for (const t of ready) {
-      await applyPlaidTransaction(t);
+      await applyPlaidTransaction(t, true);
     }
   }
 
@@ -2765,13 +2806,15 @@ function renderPendingList(pending) {
       .map((t) => {
         const isDeposit = t.amount < 0;
         const displayAmt = Math.abs(Number(t.amount)).toFixed(2);
+        const dupe = findPossibleDuplicate(t);
         return `
-      <div style="border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px;font-size:12px;">
+      <div style="border:1px solid ${dupe ? 'var(--warn)' : 'var(--border)'};border-radius:8px;padding:8px;margin-bottom:6px;font-size:12px;">
         <div style="display:flex;justify-content:space-between;">
           <span>${t.merchant} <span class="badge ${isDeposit ? 'paid' : 'upcoming'}" style="margin-left:4px;">${isDeposit ? 'Deposit' : 'Expense'}</span></span>
           <span class="mono" style="color:${isDeposit ? 'var(--accent2)' : 'var(--danger)'};">${isDeposit ? '+' : '-'}$${displayAmt}</span>
         </div>
         <div style="color:var(--muted);margin:2px 0 6px;">${t.date} · ${t.account_label}${t.budget_account ? " → " + t.budget_account : " (unmapped)"}</div>
+        ${dupe ? '<div style="color:var(--warn);font-size:11px;margin-bottom:6px;">⚠ Possible duplicate of an existing entry</div>' : ''}
         <div style="display:flex;gap:6px;">
           <button onclick='applyPlaidTransaction(${JSON.stringify(t)}).then(() => loadPendingIntoPanel())' style="flex:1;background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px;cursor:pointer;">Approve</button>
           <button onclick='rejectPlaidTransaction(${JSON.stringify(t)}).then(() => loadPendingIntoPanel())' style="flex:1;background:var(--surface2);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px;cursor:pointer;">Reject</button>
