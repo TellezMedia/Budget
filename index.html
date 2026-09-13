@@ -1,539 +1,179 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Budget</title>
-<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-
-    :root {
-      --bg: #0f1117;
-      --surface: #181c27;
-      --surface2: #1e2333;
-      --border: #2a2f42;
-      --accent: #4f8ef7;
-      --accent2: #38d9a9;
-      --warn: #f7a84f;
-      --danger: #f76f6f;
-      --text: #e4e8f0;
-      --muted: #7a84a0;
-      --mono: 'JetBrains Mono', monospace;
-      --sans: 'Inter', sans-serif;
-    }
-
-    body.light {
-      --bg: #f4f6fb;
-      --surface: #ffffff;
-      --surface2: #eef1f8;
-      --border: #d6dce8;
-      --accent: #3b7de8;
-      --accent2: #18a87a;
-      --warn: #d4820a;
-      --danger: #d63c3c;
-      --text: #1a2035;
-      --muted: #6b7594;
-    }
-
-    .theme-toggle {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 5px 12px;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--muted);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: color 0.15s, background 0.15s;
-      margin-right: 12px;
-      white-space: nowrap;
-    }
-
-    .theme-toggle:hover { color: var(--text); }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--sans);
-      min-height: 100vh;
-      font-size: 14px;
-    }
-
-    /* AUTH SCREEN */
-    #auth-screen {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      gap: 32px;
-    }
-
-    .auth-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 48px 40px;
-      width: 380px;
-      text-align: center;
-    }
-
-    .auth-logo {
-      font-family: var(--mono);
-      font-size: 11px;
-      letter-spacing: 0.2em;
-      color: var(--accent);
-      text-transform: uppercase;
-      margin-bottom: 24px;
-    }
-
-    .auth-title {
-      font-size: 24px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-
-    .auth-sub {
-      color: var(--muted);
-      margin-bottom: 36px;
-      font-size: 13px;
-      line-height: 1.6;
-    }
-
-    .btn-google {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      padding: 14px 24px;
-      font-family: var(--sans);
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      width: 100%;
-      transition: opacity 0.15s;
-    }
-
-    .btn-google:hover { opacity: 0.88; }
-
-    /* APP SHELL */
-    #app { display: none; flex-direction: column; min-height: 100vh; }
-
-    header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 0 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 56px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    .header-brand {
-      font-family: var(--mono);
-      font-size: 22px;
-      letter-spacing: 0.2em;
-      color: var(--accent);
-      text-transform: uppercase;
-    }
-
-    .header-user {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      cursor: pointer;
-      position: relative;
-    }
-
-    .avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: var(--accent);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: 600;
-      color: #fff;
-    }
-
-    .user-menu {
-      position: absolute;
-      top: 44px;
-      right: 0;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 8px;
-      min-width: 180px;
-      display: none;
-    }
-
-    .user-menu.open { display: block; }
-
-    .user-menu-item {
-      padding: 10px 14px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 13px;
-      color: var(--muted);
-      transition: background 0.1s;
-    }
-
-    .user-menu-item:hover { background: var(--border); color: var(--text); }
-    .user-menu-item.danger { color: var(--danger); }
-
-    nav {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      gap: 0;
-      padding: 0 24px;
-      overflow-x: auto;
-    }
-
-    .nav-tab {
-      padding: 14px 20px;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--muted);
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      white-space: nowrap;
-      transition: color 0.15s, border-color 0.15s;
-    }
-
-    .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-    .nav-tab:hover { color: var(--text); }
-
-    main {
-      padding: 28px 24px;
-      max-width: 960px;
-      margin: 0 auto;
-      width: 100%;
-    }
-
-    .screen { display: none; }
-    .screen.active { display: block; }
-
-    /* DASHBOARD */
-    .section-title {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 16px;
-    }
-
-    .cards-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 28px;
-    }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 20px;
-    }
-
-    .card-label {
-      font-size: 11px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 10px;
-    }
-
-    .card-value {
-      font-family: var(--mono);
-      font-size: 22px;
-      font-weight: 500;
-      color: var(--text);
-    }
-
-    .card-value.green { color: var(--accent2); }
-    .card-value.warn { color: var(--warn); }
-    .card-value.red { color: var(--danger); }
-
-    .card-sub {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 6px;
-    }
-
-    .upcoming-list {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-      margin-bottom: 28px;
-    }
-
-    .list-header {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-      font-size: 13px;
-      font-weight: 500;
-    }
-
-    .list-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 20px;
-      border-bottom: 1px solid var(--border);
-      font-size: 13px;
-    }
-
-    .list-row:last-child { border-bottom: none; }
-
-    .list-row-left { display: flex; flex-direction: column; gap: 3px; }
-    .list-row-name { font-weight: 500; }
-    .list-row-date { font-size: 11px; color: var(--muted); }
-    .list-row-amount { font-family: var(--mono); font-size: 14px; }
-    .list-row-amount.red { color: var(--danger); }
-    .list-row-amount.green { color: var(--accent2); }
-    .list-row-amount.muted { color: var(--muted); }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    .badge.upcoming { background: rgba(247,168,79,0.15); color: var(--warn); }
-    .badge.paid { background: rgba(56,217,169,0.15); color: var(--accent2); }
-    .badge.overdue { background: rgba(247,111,111,0.15); color: var(--danger); }
-
-    /* FORMS */
-    .form-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 24px;
-    }
-
-    .form-title {
-      font-size: 15px;
-      font-weight: 600;
-      margin-bottom: 20px;
-    }
-
-    .form-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-
-    .form-group { display: flex; flex-direction: column; gap: 6px; }
-
-    label {
-      font-size: 11px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--muted);
-    }
-
-    input, select, textarea {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 12px;
-      color: var(--text);
-      font-family: var(--sans);
-      font-size: 13px;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-
-    input:focus, select:focus, textarea:focus {
-      border-color: var(--accent);
-    }
-
-    select option { background: var(--surface2); }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 18px;
-      border-radius: 8px;
-      font-family: var(--sans);
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      border: none;
-      transition: opacity 0.15s;
-    }
-
-    .btn:hover { opacity: 0.85; }
-    .btn-primary { background: var(--accent); color: #fff; }
-    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-    .btn-danger { background: rgba(247,111,111,0.15); color: var(--danger); border: 1px solid rgba(247,111,111,0.3); }
-    .btn-sm { padding: 6px 12px; font-size: 12px; }
-
-    .data-table {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-      margin-bottom: 24px;
-    }
-
-    .data-table table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .data-table th {
-      padding: 12px 16px;
-      text-align: left;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: var(--muted);
-      border-bottom: 1px solid var(--border);
-      background: var(--surface2);
-    }
-
-    .data-table td {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
-      font-size: 13px;
-    }
-
-    .data-table tr:last-child td { border-bottom: none; }
-    .data-table tr:hover td { background: rgba(255,255,255,0.02); }
-
-    .mono { font-family: var(--mono); }
-
-    .empty-state {
-      text-align: center;
-      padding: 48px 24px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      display: inline-block;
-      margin-right: 6px;
-    }
-
-    .dot-green { background: var(--accent2); }
-    .dot-warn { background: var(--warn); }
-    .dot-red { background: var(--danger); }
-
-    .toast {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 14px 20px;
-      font-size: 13px;
-      max-width: 320px;
-      z-index: 999;
-      opacity: 0;
-      transform: translateY(8px);
-      transition: all 0.2s;
-      pointer-events: none;
-    }
-
-    .toast.show { opacity: 1; transform: translateY(0); }
-    .toast.success { border-color: var(--accent2); }
-    .toast.error { border-color: var(--danger); }
-
-    .loading {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: var(--muted);
-      font-size: 13px;
-      padding: 24px 0;
-    }
-
-    .spinner {
-      width: 16px;
-      height: 16px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .config-section {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 20px;
-      margin-bottom: 16px;
-      font-size: 13px;
-      line-height: 1.7;
-      color: var(--muted);
-    }
-
-    .config-section strong { color: var(--text); }
-    .config-section code {
-      background: var(--bg);
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--accent);
-    }
-
-    .setup-needed {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 36px;
-      text-align: center;
-    }
-
-    .setup-needed h3 { font-size: 17px; margin-bottom: 10px; }
-    .setup-needed p { color: var(--muted); font-size: 13px; line-height: 1.7; max-width: 480px; margin: 0 auto 24px; }
-
-    @media (max-width: 600px) {
-      main { padding: 20px 16px; }
-      header { padding: 0 16px; }
-      nav { padding: 0 12px; }
-      .nav-tab { padding: 14px 14px; font-size: 12px; }
-      .form-grid { grid-template-columns: 1fr; }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Budget</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #0f1117;
+  --surface: #181c27;
+  --surface2: #1e2333;
+  --border: #2a2f42;
+  --accent: #4f8ef7;
+  --accent2: #38d9a9;
+  --warn: #f7a84f;
+  --danger: #f76f6f;
+  --text: #e4e8f0;
+  --muted: #7a84a0;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Inter', sans-serif;
+}
+
+body.light {
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --surface2: #eef1f8;
+  --border: #d6dce8;
+  --accent: #3b7de8;
+  --accent2: #18a87a;
+  --warn: #d4820a;
+  --danger: #d63c3c;
+  --text: #1a2035;
+  --muted: #6b7594;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; font-size: 14px; }
+
+.theme-toggle { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 6px; margin-right: 12px; white-space: nowrap; }
+.theme-toggle:hover { color: var(--text); }
+
+/* AUTH */
+#auth-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 16px; }
+.auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 48px 40px; width: 380px; text-align: center; }
+.auth-logo { font-family: var(--mono); font-size: 11px; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; margin-bottom: 24px; }
+.auth-title { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+.auth-sub { color: var(--muted); margin-bottom: 32px; font-size: 13px; line-height: 1.6; }
+.btn-google { display: flex; align-items: center; justify-content: center; gap: 12px; background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 14px 24px; font-family: var(--sans); font-size: 14px; font-weight: 500; cursor: pointer; width: 100%; transition: opacity 0.15s; margin-bottom: 12px; }
+.btn-google:hover { opacity: 0.88; }
+.btn-sample { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 10px; padding: 12px 24px; font-family: var(--sans); font-size: 13px; cursor: pointer; width: 100%; }
+.btn-sample:hover { color: var(--text); border-color: var(--accent); }
+
+/* APP SHELL */
+#app { display: none; flex-direction: column; min-height: 100vh; }
+header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
+.header-brand { font-family: var(--mono); font-size: 22px; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; }
+.header-user { display: flex; align-items: center; gap: 10px; cursor: pointer; position: relative; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #fff; }
+.user-menu { position: absolute; top: 44px; right: 0; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 8px; min-width: 180px; display: none; }
+.user-menu.open { display: block; }
+.user-menu-item { padding: 10px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--muted); transition: background 0.1s; }
+.user-menu-item:hover { background: var(--border); color: var(--text); }
+.user-menu-item.danger { color: var(--danger); }
+
+nav { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; gap: 0; padding: 0 24px; overflow-x: auto; }
+.nav-tab { padding: 10px 20px; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: color 0.15s, border-color 0.15s; line-height: 1.35; text-align: center; }
+.nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.nav-tab:hover { color: var(--text); }
+.nav-tab .stacked { display: block; }
+
+main { padding: 28px 24px; max-width: 960px; margin: 0 auto; width: 100%; }
+.screen { display: none; }
+.screen.active { display: block; }
+
+.section-title { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
+.section-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+
+.cards-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.card-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
+.card-value { font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--text); }
+.card-value.green { color: var(--accent2); }
+.card-value.warn { color: var(--warn); }
+.card-value.red { color: var(--danger); }
+.card-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+/* ACCOUNT CHIPS (Register header) */
+.account-chips { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+.account-chip { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; min-width: 160px; }
+.account-chip .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.account-chip .name { font-size: 12px; color: var(--muted); }
+.account-chip .bal { font-family: var(--mono); font-size: 15px; font-weight: 500; }
+
+.upcoming-list { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 28px; }
+.list-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 13px; gap: 12px; }
+.list-row:last-child { border-bottom: none; }
+.list-row-left { display: flex; flex-direction: column; gap: 3px; }
+.list-row-name { font-weight: 500; }
+.list-row-date { font-size: 11px; color: var(--muted); }
+.list-row-amount { font-family: var(--mono); font-size: 14px; white-space: nowrap; }
+.list-row-amount.red { color: var(--danger); }
+.list-row-amount.green { color: var(--accent2); }
+
+.badge { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; }
+.badge.upcoming { background: rgba(247,168,79,0.15); color: var(--warn); }
+.badge.paid { background: rgba(56,217,169,0.15); color: var(--accent2); }
+.badge.overdue { background: rgba(247,111,111,0.15); color: var(--danger); }
+.badge.recurring { background: rgba(79,142,247,0.15); color: var(--accent); }
+
+.form-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+.form-title { font-size: 15px; font-weight: 600; margin-bottom: 20px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+input, select, textarea { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-family: var(--sans); font-size: 13px; outline: none; transition: border-color 0.15s; width: 100%; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+select option { background: var(--surface2); }
+
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px; font-family: var(--sans); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: opacity 0.15s; }
+.btn:hover { opacity: 0.85; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: rgba(247,111,111,0.15); color: var(--danger); border: 1px solid rgba(247,111,111,0.3); }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.data-table { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; overflow-x: auto; }
+.data-table table { width: 100%; border-collapse: collapse; }
+.data-table th { padding: 12px 16px; text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); border-bottom: 1px solid var(--border); background: var(--surface2); white-space: nowrap; }
+.data-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; white-space: nowrap; }
+.data-table tr:last-child td { border-bottom: none; }
+.mono { font-family: var(--mono); }
+.empty-state { text-align: center; padding: 40px 24px; color: var(--muted); font-size: 13px; }
+
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px; font-size: 13px; max-width: 320px; z-index: 999; opacity: 0; transform: translateY(8px); transition: all 0.2s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { border-color: var(--accent2); }
+.toast.error { border-color: var(--danger); }
+
+/* CATEGORY / PROGRESS */
+.category-row { margin-bottom: 14px; }
+.category-row-top { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+.category-row-top .name { display: flex; align-items: center; gap: 6px; }
+.category-row-top .dot { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+.progress-track { height: 6px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 4px; }
+
+.chip-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 2px 4px; }
+.chip-btn:hover { color: var(--danger); }
+
+/* MODAL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; z-index: 500; padding: 20px; }
+.modal-overlay.open { display: flex; }
+.modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 32px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+.modal-title { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+.modal-sub { font-size: 12px; color: var(--muted); margin-bottom: 24px; line-height: 1.6; }
+.step-dots { display: flex; gap: 6px; margin-bottom: 20px; }
+.step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.step-dot.active { background: var(--accent); }
+.setup-account-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.color-swatch { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; flex-shrink: 0; }
+.color-swatch.selected { border-color: var(--text); }
+.color-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.stub-tag { background: var(--surface2); color: var(--muted); font-size: 10px; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+@media (max-width: 600px) {
+  main { padding: 20px 16px; }
+  header { padding: 0 16px; }
+  nav { padding: 0 12px; }
+  .nav-tab { padding: 10px 12px; font-size: 12px; }
+  .form-grid { grid-template-columns: 1fr; }
+}
+</style>
 </head>
 <body>
 
@@ -543,204 +183,158 @@
     <div class="auth-logo">Budget</div>
     <h1 class="auth-title">Your money, your data</h1>
     <p class="auth-sub">Sign in with Google. Your budget lives in your own Google Sheet, only you can see it.</p>
-    <button class="btn-google" onclick="signIn()">
-      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#fff" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#fff" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#fff" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#fff" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/></svg>
-      Continue with Google
-    </button>
+    <button class="btn-google" onclick="continueWithGoogle()">Continue with Google</button>
+    <button class="btn-sample" onclick="continueWithSample()">Try it with sample data</button>
   </div>
-  <div id="setup-hint" style="display:none; max-width:520px; padding:0 24px;">
-    <div class="config-section">
-      <strong>First-time setup required.</strong> Before signing in, you need a Google OAuth Client ID.<br><br>
-      1. Go to <strong>console.cloud.google.com</strong> and create a project.<br>
-      2. Enable <strong>Google Sheets API</strong> and <strong>Google Drive API</strong>.<br>
-      3. Under Credentials, create an <strong>OAuth 2.0 Client ID</strong> (Web application type).<br>
-      4. Add your GitHub Pages URL to <strong>Authorized JavaScript origins</strong>.<br>
-      5. Copy the Client ID and paste it into <code>CLIENT_ID</code> at the top of this file.<br><br>
-      <strong>Hosting:</strong> Push this file to a GitHub repo, enable GitHub Pages under Settings, and your app is live for free.
+</div>
+
+<!-- SETUP MODAL -->
+<div class="modal-overlay" id="setup-modal">
+  <div class="modal-card">
+    <div class="step-dots">
+      <div class="step-dot active" id="step-dot-1"></div>
+      <div class="step-dot" id="step-dot-2"></div>
+    </div>
+
+    <div id="setup-step-1">
+      <div class="modal-title">Add your accounts</div>
+      <div class="modal-sub">Add each bank account you want to track. You can change these anytime in Settings.</div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label>Account name</label>
+        <input type="text" id="setup-acc-name" placeholder="PNC checking, Chime savings..." />
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label>Starting balance</label>
+        <input type="number" id="setup-acc-balance" placeholder="0.00" step="0.01" />
+      </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>Color</label>
+        <div class="color-row" id="setup-color-row"></div>
+      </div>
+      <button class="btn btn-secondary" style="width:100%;margin-bottom:16px;" onclick="addSetupAccount()">Add account</button>
+      <div id="setup-account-list"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="setupGoToStep2()">Continue</button>
+    </div>
+
+    <div id="setup-step-2" style="display:none;">
+      <div class="modal-title">Connect bank sync</div>
+      <div class="modal-sub">Plaid lets transactions sync automatically instead of entering them by hand. This is coming in the next phase, you can skip it for now and add it later from Settings.</div>
+      <div class="form-card" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+        <div>
+          <div style="font-weight:500;margin-bottom:4px;">Connect with Plaid</div>
+          <span class="stub-tag">Coming soon</span>
+        </div>
+        <button class="btn btn-secondary" disabled>Connect</button>
+      </div>
+      <button class="btn btn-primary" style="width:100%;" onclick="finishSetup()">Go to my budget</button>
     </div>
   </div>
-  <button class="btn btn-secondary btn-sm" onclick="toggleSetupHint()" style="margin-top:-12px;">Setup instructions</button>
 </div>
 
 <!-- APP -->
 <div id="app">
   <header>
-    <div class="header-brand">Budget <span id="app-version" style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v2.5</span></div>
+    <div class="header-brand">Budget <span style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v3.0.0-beta</span></div>
     <div style="display:flex;align-items:center;margin-left:auto;">
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">&#9790; Dark</button>
       <div class="header-user" onclick="toggleUserMenu()">
-      <div class="avatar" id="user-avatar">AT</div>
-      <div class="user-menu" id="user-menu">
-        <div class="user-menu-item" id="user-name-display">Tony Tellez</div>
-        <div class="user-menu-item" onclick="openSheetUrl()">Open my Sheet</div>
-        <div class="user-menu-item danger" onclick="resetAllData()">Reset all data</div>
-        <div class="user-menu-item danger" onclick="signOut()">Sign out</div>
+        <div class="avatar" id="user-avatar">T</div>
+        <div class="user-menu" id="user-menu">
+          <div class="user-menu-item" onclick="showScreen('settings')">Settings</div>
+          <div class="user-menu-item danger" onclick="resetAllData()">Reset all data</div>
+          <div class="user-menu-item danger" onclick="signOut()">Sign out</div>
+        </div>
       </div>
-    </div>
     </div>
   </header>
+
   <nav>
-    <div class="nav-tab active" onclick="showScreen('dashboard', this)">Dashboard</div>
-    <div class="nav-tab" onclick="showScreen('expenses', this)">Expenses</div>
-    <div class="nav-tab" onclick="showScreen('bills', this)">Bills</div>
-    <div class="nav-tab" onclick="showScreen('scheduled', this)">Scheduled</div>
-    <div class="nav-tab" onclick="showScreen('transactions', this)">Transactions</div>
-    <div class="nav-tab" onclick="showScreen('balances', this)">Accounts</div>
-    <div class="nav-tab" onclick="showScreen('budget', this)">Budget</div>
+    <div class="nav-tab active" data-screen="budget" onclick="showScreen('budget')">Budget</div>
+    <div class="nav-tab" data-screen="recurring" onclick="showScreen('recurring')"><span class="stacked">Recurring</span><span class="stacked">Charges</span></div>
+    <div class="nav-tab" data-screen="register" onclick="showScreen('register')">Register</div>
+    <div class="nav-tab" data-screen="debts" onclick="showScreen('debts')">Debts</div>
+    <div class="nav-tab" data-screen="settings" onclick="showScreen('settings')">Settings</div>
   </nav>
+
   <main>
 
-    <!-- DASHBOARD -->
-    <div id="screen-dashboard" class="screen active">
-      <div class="section-title">Overview</div>
-      <div class="cards-row" id="balance-cards">
-        <div id="account-cards-container" style="display:contents"></div>
+    <!-- BUDGET (HOME) -->
+    <div id="screen-budget" class="screen active">
+      <div class="cards-row">
         <div class="card">
-          <div class="card-label">This Month Spent</div>
-          <div class="card-value warn" id="dash-spent">$0.00</div>
-          <div class="card-sub">Expenses logged</div>
+          <div class="card-label">Income this month</div>
+          <div class="card-value green" id="budget-income">$0.00</div>
         </div>
         <div class="card">
-          <div class="card-label">Total Balance</div>
-          <div class="card-value green" id="dash-total">$0.00</div>
-          <div class="card-sub" id="dash-total-sub">All accounts combined</div>
+          <div class="card-label">Recurring charges</div>
+          <div class="card-value warn" id="budget-charges">$0.00</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Surplus</div>
+          <div class="card-value" id="budget-surplus">$0.00</div>
         </div>
       </div>
 
-      <div class="section-title">Upcoming payments (next 14 days)</div>
-      <div class="upcoming-list">
-        <div id="upcoming-list-body">
-          <div class="empty-state">No upcoming payments found.</div>
+      <div class="section-title">Spending by category</div>
+      <div class="card" style="margin-bottom:28px;padding:24px;">
+        <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
+          <div id="budget-legend" style="display:flex;flex-direction:column;gap:10px;min-width:170px;flex:1;"></div>
+          <canvas id="budget-pie" width="200" height="200" style="flex-shrink:0;"></canvas>
         </div>
       </div>
 
-      <div class="section-title">Recent transactions</div>
-      <div class="upcoming-list">
-        <div id="recent-expenses-body">
-          <div class="empty-state">No transactions logged yet.</div>
-        </div>
+      <div class="section-header-row">
+        <div class="section-title" style="margin-bottom:0;">Category budgets</div>
       </div>
-
-      <div class="section-title">Calendar</div>
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;font-size:11px;">
-        <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#4f8ef7;display:inline-block;"></span>Scheduled</span>
-        <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#f7a84f;display:inline-block;"></span>Bill</span>
-        <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#f76f6f;display:inline-block;"></span>Expense</span>
-      </div>
-      <div class="card" style="padding:0; overflow:hidden; margin-bottom:28px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--border);">
-          <button class="btn btn-secondary btn-sm" onclick="calPrev()">&#8592;</button>
-          <div id="cal-month-label" style="font-weight:600; font-size:14px;"></div>
-          <button class="btn btn-secondary btn-sm" onclick="calNext()">&#8594;</button>
-        </div>
-        <div style="padding:12px 16px;">
-          <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:4px;">
-            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:6px 2px;">Sun</div>
-            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:6px 2px;">Mon</div>
-            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:6px 2px;">Tue</div>
-            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:6px 2px;">Wed</div>
-            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:6px 2px;">Thu</div>
-            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:6px 2px;">Fri</div>
-            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;padding:6px 2px;">Sat</div>
+      <div class="form-card">
+        <div class="form-grid" style="margin-bottom:12px;">
+          <div class="form-group">
+            <label>Category name</label>
+            <input type="text" id="cat-name" placeholder="Housing, subscriptions..." />
           </div>
-          <div id="cal-grid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;"></div>
+          <div class="form-group">
+            <label>Planned monthly amount</label>
+            <input type="number" id="cat-amount" placeholder="0.00" step="0.01" />
+          </div>
         </div>
-        <div id="cal-detail" style="border-top:1px solid var(--border); padding:16px 20px; display:none; font-size:13px;"></div>
+        <button class="btn btn-secondary btn-sm" onclick="addCategory()">Add category</button>
+      </div>
+      <div id="category-progress-list" style="margin-bottom:28px;"></div>
+
+      <div class="section-title">Upcoming charges</div>
+      <div class="upcoming-list">
+        <div id="upcoming-list-body"><div class="empty-state">No recurring charges yet.</div></div>
       </div>
     </div>
 
-    <!-- EXPENSES -->
-    <div id="screen-expenses" class="screen">
+    <!-- RECURRING CHARGES -->
+    <div id="screen-recurring" class="screen">
       <div class="form-card">
-        <div class="form-title">Log an expense</div>
+        <div class="form-title" id="recurring-form-title">Add a recurring charge</div>
         <div class="form-grid">
           <div class="form-group">
-            <label>Date</label>
-            <input type="date" id="exp-date" />
-          </div>
-          <div class="form-group">
-            <label>Description</label>
-            <input type="text" id="exp-desc" placeholder="Gas, groceries..." />
+            <label>Name</label>
+            <input type="text" id="rec-name" placeholder="Netflix, rent..." />
           </div>
           <div class="form-group">
             <label>Amount</label>
-            <input type="number" id="exp-amount" placeholder="0.00" step="0.01" />
-          </div>
-          <div class="form-group">
-            <label>Category</label>
-            <select id="exp-category" onchange="toggleCustomCat()">
-              <option>Food</option>
-              <option>Gas</option>
-              <option>Groceries</option>
-              <option>Entertainment</option>
-              <option>Shopping</option>
-              <option>Health</option>
-              <option>Utilities</option>
-              <option>Subscriptions</option>
-              <option>Dining Out</option>
-              <option>Personal Care</option>
-              <option>Auto</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div class="form-group" id="custom-cat-group" style="display:none;">
-            <label>Custom Category</label>
-            <input type="text" id="exp-custom-category" placeholder="Enter category..." />
-          </div>
-          <div class="form-group">
-            <label>Account</label>
-            <select id="exp-account" class="account-select" data-extra="Cash,Credit Card">
-            </select>
-          </div>
-        </div>
-        <button class="btn btn-primary" id="exp-submit-btn" onclick="saveExpense()">Save expense</button>
-        <button class="btn btn-secondary" id="exp-cancel-btn" onclick="cancelEditExpense()" style="display:none;">Cancel edit</button>
-      </div>
-
-      <div class="data-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Description</th>
-              <th>Category</th>
-              <th>Account</th>
-              <th>Amount</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="expenses-tbody">
-            <tr><td colspan="6"><div class="empty-state">No expenses yet.</div></td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- BILLS -->
-    <div id="screen-bills" class="screen">
-      <div class="form-card">
-        <div class="form-title">Add a recurring bill</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Bill name</label>
-            <input type="text" id="bill-name" placeholder="Netflix, rent..." />
-          </div>
-          <div class="form-group">
-            <label>Amount</label>
-            <input type="number" id="bill-amount" placeholder="0.00" step="0.01" />
+            <input type="number" id="rec-amount" placeholder="0.00" step="0.01" />
           </div>
           <div class="form-group">
             <label>Due day of month</label>
-            <input type="number" id="bill-day" placeholder="1-31" min="1" max="31" />
+            <input type="number" id="rec-day" placeholder="1-31" min="1" max="31" />
           </div>
           <div class="form-group">
             <label>Account</label>
-            <select id="bill-account" class="account-select" data-extra="Auto-pay">
-            </select>
+            <select id="rec-account"></select>
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="rec-category"><option value="">Uncategorized</option></select>
           </div>
           <div class="form-group">
             <label>Frequency</label>
-            <select id="bill-freq">
+            <select id="rec-freq">
               <option>Monthly</option>
               <option>Biweekly</option>
               <option>Weekly</option>
@@ -748,255 +342,169 @@
             </select>
           </div>
         </div>
-        <button class="btn btn-primary" id="bill-submit-btn" onclick="saveBill()">Save bill</button>
-        <button class="btn btn-secondary" id="bill-cancel-btn" onclick="cancelEditBill()" style="display:none;">Cancel edit</button>
+        <button class="btn btn-primary" id="rec-submit-btn" onclick="saveRecurring()">Save charge</button>
+        <button class="btn btn-secondary" id="rec-cancel-btn" onclick="cancelEditRecurring()" style="display:none;">Cancel edit</button>
       </div>
 
       <div class="data-table">
         <table>
           <thead>
-            <tr>
-              <th>Name</th>
-              <th>Amount</th>
-              <th>Due Day</th>
-              <th>Account</th>
-              <th>Frequency</th>
-              <th>This Month</th>
-              <th></th>
-            </tr>
+            <tr><th>Name</th><th>Amount</th><th>Due day</th><th>Account</th><th>Category</th><th>Frequency</th><th>This month</th><th></th></tr>
           </thead>
-          <tbody id="bills-tbody">
-            <tr><td colspan="6"><div class="empty-state">No bills added yet.</div></td></tr>
-          </tbody>
+          <tbody id="recurring-tbody"><tr><td colspan="8"><div class="empty-state">No recurring charges yet.</div></td></tr></tbody>
         </table>
       </div>
     </div>
 
-    <!-- SCHEDULED PAYMENTS -->
-    <div id="screen-scheduled" class="screen">
+    <!-- REGISTER -->
+    <div id="screen-register" class="screen">
+      <div class="account-chips" id="account-chips"></div>
+
       <div class="form-card">
-        <div class="form-title">Add a scheduled payment</div>
+        <div class="form-title">Add a transaction</div>
         <div class="form-grid">
           <div class="form-group">
-            <label>Name</label>
-            <input type="text" id="sched-name" placeholder="Car payment..." />
-          </div>
-          <div class="form-group">
-            <label>Amount</label>
-            <input type="number" id="sched-amount" placeholder="0.00" step="0.01" />
-          </div>
-          <div class="form-group">
-            <label>Due date</label>
-            <input type="date" id="sched-date" />
-          </div>
-          <div class="form-group">
-            <label>Account</label>
-            <select id="sched-account" class="account-select" data-extra="Auto-pay">
+            <label>Type</label>
+            <select id="txn-type">
+              <option value="expense">Expense</option>
+              <option value="deposit">Deposit</option>
+              <option value="transfer">Transfer</option>
             </select>
           </div>
-        </div>
-        <button class="btn btn-primary" id="sched-submit-btn" onclick="saveScheduled()">Save payment</button>
-        <button class="btn btn-secondary" id="sched-cancel-btn" onclick="cancelEditScheduled()" style="display:none;">Cancel edit</button>
-      </div>
-
-      <div class="data-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Amount</th>
-              <th>Due Date</th>
-              <th>Account</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="scheduled-tbody">
-            <tr><td colspan="6"><div class="empty-state">No scheduled payments yet.</div></td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- BALANCES -->
-    <div id="screen-balances" class="screen">
-      <div class="form-card">
-        <div class="form-title">Set starting balance</div>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:16px;margin-top:-8px;">Enter your current real balance from your banking app. This becomes the baseline for balance verification.</p>
-        <div class="form-grid">
           <div class="form-group">
-            <label>Account name</label>
-            <input type="text" id="bal-account" placeholder="PNC, Chime..." />
+            <label>Date</label>
+            <input type="date" id="txn-date" />
           </div>
-          <div class="form-group">
-            <label>Current balance</label>
-            <input type="number" id="bal-amount" placeholder="0.00" step="0.01" />
-          </div>
-        </div>
-        <button class="btn btn-primary" onclick="addBalance()">Set balance</button>
-      </div>
-
-      <div class="data-table" style="margin-bottom:24px;">
-        <table>
-          <thead>
-            <tr>
-              <th>Account</th>
-              <th>Color</th>
-              <th>Starting Balance</th>
-              <th>Current Balance</th>
-              <th>Alert Below</th>
-              <th>Last Updated</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="balances-tbody">
-            <tr><td colspan="7"><div class="empty-state">No accounts yet.</div></td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="form-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-          <div>
-            <div class="form-title" style="margin-bottom:2px;">Balance Transactions</div>
-            <p style="font-size:12px;color:var(--muted);">Verifies app math: Starting Balance + Deposits - Expenses = Current Balance</p>
-          </div>
-          <button class="btn btn-secondary" onclick="balanceTransactionsCheck()">Run check</button>
-        </div>
-        <div id="balance-check-results"><div class="empty-state" style="padding:16px 0;">Click Run check to verify your balances.</div></div>
-      </div>
-    </div>
-
-    <!-- TRANSACTIONS -->
-    <div id="screen-transactions" class="screen">
-      <div class="form-card">
-        <div class="form-title">Log a deposit</div>
-        <div class="form-grid">
           <div class="form-group">
             <label>Description</label>
-            <input type="text" id="dep-desc" placeholder="Paycheck, transfer..." />
+            <input type="text" id="txn-desc" placeholder="Kroger, paycheck..." />
           </div>
           <div class="form-group">
             <label>Amount</label>
-            <input type="number" id="dep-amount" placeholder="0.00" step="0.01" />
+            <input type="number" id="txn-amount" placeholder="0.00" step="0.01" />
           </div>
           <div class="form-group">
             <label>Account</label>
-            <select id="dep-account" class="account-select" data-extra="Cash">
-            </select>
+            <select id="txn-account"></select>
+          </div>
+          <div class="form-group" id="txn-to-account-group" style="display:none;">
+            <label>To account</label>
+            <select id="txn-to-account"></select>
+          </div>
+          <div class="form-group" id="txn-category-group">
+            <label>Category</label>
+            <select id="txn-category"><option value="">Uncategorized</option></select>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="addDeposit()">Log deposit</button>
-      </div>
-
-      <div class="form-card">
-        <div class="form-title">Move money between accounts</div>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:16px;margin-top:-8px;">Transfers move money between your own accounts. They never count as spending and never appear in your Budget totals.</p>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>From</label>
-            <select id="xfer-from" class="account-select" data-extra="">
-            </select>
-          </div>
-          <div class="form-group">
-            <label>To</label>
-            <select id="xfer-to" class="account-select" data-extra="">
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Amount</label>
-            <input type="number" id="xfer-amount" placeholder="0.00" step="0.01" />
-          </div>
-          <div class="form-group">
-            <label>Description (optional)</label>
-            <input type="text" id="xfer-desc" placeholder="Move to savings..." />
-          </div>
-        </div>
-        <button class="btn btn-primary" onclick="transferMoney()">Move money</button>
+        <button class="btn btn-primary" onclick="addTransaction()">Add transaction</button>
       </div>
 
       <div class="section-title">Transaction history</div>
       <div class="data-table">
         <table>
           <thead>
-            <tr>
-              <th>Date</th>
-              <th>Type</th>
-              <th>Description</th>
-              <th>Account</th>
-              <th>Amount</th>
-            </tr>
+            <tr><th>Date</th><th>Description</th><th>Type</th><th>Account</th><th>Category</th><th>Amount</th><th></th></tr>
           </thead>
-          <tbody id="transactions-tbody">
-            <tr><td colspan="5"><div class="empty-state">No transactions yet.</div></td></tr>
-          </tbody>
+          <tbody id="register-tbody"><tr><td colspan="7"><div class="empty-state">No transactions yet.</div></td></tr></tbody>
         </table>
       </div>
     </div>
 
-    <!-- BUDGET V2.0 -->
-    <div id="screen-budget" class="screen">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-        <div>
-          <div class="section-title" style="margin-bottom:2px;">Monthly Budget</div>
-          <div style="font-size:12px;color:var(--muted);" id="budget-month-label"></div>
-        </div>
-        <button class="btn btn-secondary btn-sm" onclick="openBudgetSheet()">Open Budget Sheet</button>
-      </div>
-
+    <!-- DEBTS -->
+    <div id="screen-debts" class="screen">
       <div class="form-card">
-        <div class="form-title">Set a monthly target</div>
+        <div class="form-title" id="debt-form-title">Add a debt</div>
         <div class="form-grid">
           <div class="form-group">
-            <label>Category</label>
-            <select id="budget-cat">
-              <option>Food</option>
-              <option>Gas</option>
-              <option>Groceries</option>
-              <option>Entertainment</option>
-              <option>Shopping</option>
-              <option>Health</option>
-              <option>Utilities</option>
-              <option>Subscriptions</option>
-              <option>Dining Out</option>
-              <option>Personal Care</option>
-              <option>Auto</option>
-              <option>Other</option>
-            </select>
+            <label>Name</label>
+            <input type="text" id="debt-name" placeholder="Chase Sapphire, car loan..." />
           </div>
           <div class="form-group">
-            <label>Monthly limit</label>
-            <input type="number" id="budget-limit" placeholder="0.00" step="0.01" />
+            <label>Balance</label>
+            <input type="number" id="debt-balance" placeholder="0.00" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>Minimum due</label>
+            <input type="number" id="debt-min" placeholder="0.00" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>Credit limit (optional)</label>
+            <input type="number" id="debt-limit" placeholder="0.00" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>Due day of month</label>
+            <input type="number" id="debt-day" placeholder="1-31" min="1" max="31" />
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <input type="text" id="debt-status" placeholder="open, unpaid, autopay..." />
           </div>
         </div>
-        <button class="btn btn-primary" onclick="saveBudgetTarget()">Save target</button>
+        <button class="btn btn-primary" id="debt-submit-btn" onclick="saveDebt()">Save debt</button>
+        <button class="btn btn-secondary" id="debt-cancel-btn" onclick="cancelEditDebt()" style="display:none;">Cancel edit</button>
       </div>
 
-      <!-- Pie chart canvas -->
-      <div class="card" style="margin-bottom:24px;padding:24px;">
-        <div style="font-size:13px;font-weight:600;margin-bottom:16px;">Spending Breakdown - This Month</div>
-        <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:center;justify-content:center;">
-          <canvas id="budget-pie" width="220" height="220"></canvas>
-          <div id="budget-legend" style="display:flex;flex-direction:column;gap:8px;min-width:160px;"></div>
-        </div>
-      </div>
-
-      <!-- Actual vs Target table -->
       <div class="data-table">
         <table>
           <thead>
-            <tr>
-              <th>Category</th>
-              <th>Target</th>
-              <th>Spent</th>
-              <th>Remaining</th>
-              <th>Status</th>
-            </tr>
+            <tr><th>Name</th><th>Balance</th><th>Min due</th><th>Limit</th><th>Used</th><th>Due day</th><th>Status</th><th></th></tr>
           </thead>
-          <tbody id="budget-tbody">
-            <tr><td colspan="5"><div class="empty-state">Set a budget target to get started.</div></td></tr>
-          </tbody>
+          <tbody id="debts-tbody"><tr><td colspan="8"><div class="empty-state">No debts added yet.</div></td></tr></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="screen-settings" class="screen">
+      <div class="section-title">Accounts</div>
+      <div class="form-card">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Account name</label>
+            <input type="text" id="acc-name" placeholder="PNC, Chime..." />
+          </div>
+          <div class="form-group">
+            <label>Starting balance</label>
+            <input type="number" id="acc-balance" placeholder="0.00" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>Low balance alert</label>
+            <input type="number" id="acc-threshold" placeholder="0.00" step="0.01" />
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>Color</label>
+          <div class="color-row" id="acc-color-row"></div>
+        </div>
+        <button class="btn btn-primary" id="acc-submit-btn" onclick="saveAccount()">Add account</button>
+        <button class="btn btn-secondary" id="acc-cancel-btn" onclick="cancelEditAccount()" style="display:none;">Cancel edit</button>
+      </div>
+      <div class="data-table">
+        <table>
+          <thead><tr><th>Account</th><th>Color</th><th>Balance</th><th>Alert below</th><th></th></tr></thead>
+          <tbody id="settings-accounts-tbody"><tr><td colspan="5"><div class="empty-state">No accounts yet.</div></td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="section-title">Bank sync</div>
+      <div class="form-card" style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-weight:500;margin-bottom:4px;">Plaid</div>
+          <div style="font-size:12px;color:var(--muted);">Automatic transaction sync for connected accounts.</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="stub-tag">Coming soon</span>
+          <button class="btn btn-secondary" disabled>Connect</button>
+        </div>
+      </div>
+
+      <div class="section-title">Google account</div>
+      <div class="form-card" style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-weight:500;margin-bottom:4px;" id="settings-account-mode">Sample data mode</div>
+          <div style="font-size:12px;color:var(--muted);" id="settings-account-sub">Not connected to a Google Sheet yet. Sign in with Google to sync your real data.</div>
+        </div>
+        <button class="btn btn-secondary" onclick="signOut()">Sign out</button>
       </div>
     </div>
 
@@ -1006,2029 +514,746 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  // ============================================================
-  // CONFIGURATION — paste your Google OAuth Client ID here
-  // ============================================================
-  const CLIENT_ID = '803010094338-5deiv8s131d8m5qjr12pqt6kcod01msp.apps.googleusercontent.com';
-  const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile';
-  const SHEET_TITLE = 'Budget App Data';
-  const BUDGET_SHEET_TITLE = 'Budget Plan Data';
-
-  // ============================================================
-  // Sheet tab names
-  // ============================================================
-  const TABS = {
-    expenses:     'Expenses',
-    bills:        'Bills',
-    scheduled:    'Scheduled',
-    balances:     'Balances',
-    transactions: 'Transactions'
-  };
-
-  const BUDGET_TABS = {
-    targets: 'Targets'
-  };
-
-  const BUDGET_CATEGORIES = ['Food','Gas','Groceries','Entertainment','Shopping','Health','Utilities','Subscriptions','Dining Out','Personal Care','Auto','Other'];
-
-  const PIE_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c','#4ade80','#e879f9'];
-  const ACCOUNT_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c'];
-  const APP_VERSION = 'v2.5.2';
-
-  let tokenClient;
-  let accessToken = null;
-  let tokenExpiresAt = 0;   // epoch ms when the current token dies
-  let refreshInFlight = null; // prevents parallel silent-refresh attempts
-  let authInFlight = false;   // prevents double-clicking Sign In from firing two flows
-  let sheetId = null;
-  let budgetSheetId = null;
-  let userData = { expenses: [], bills: [], scheduled: [], balances: [], transactions: [] };
-  let budgetData = { targets: [] };
-
-  // ---- Auth ----
-
-  function initGoogle() {
-    if (!CLIENT_ID || CLIENT_ID === 'YOUR_GOOGLE_OAUTH_CLIENT_ID') {
-      document.getElementById('setup-hint').style.display = 'block';
-      return;
-    }
-    google.accounts.id.initialize({ client_id: CLIENT_ID, callback: () => {} });
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPES,
-      callback: async (resp) => {
-        if (resp.error) { showToast('Sign-in failed: ' + resp.error, 'error'); return; }
-        accessToken = resp.access_token;
-        // Google tokens last ~3600s. Track real expiry with a 60s safety buffer.
-        tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) * 1000) - 60000;
-        await onSignedIn();
-      }
-    });
-  }
-
-  function signIn() {
-    if (!CLIENT_ID || CLIENT_ID === 'YOUR_GOOGLE_OAUTH_CLIENT_ID') {
-      showToast('Add your Client ID to the top of this file first.', 'error');
-      document.getElementById('setup-hint').style.display = 'block';
-      return;
-    }
-    if (authInFlight) return;
-    authInFlight = true;
-    const originalCallback = tokenClient.callback;
-    tokenClient.callback = async (resp) => {
-      tokenClient.callback = originalCallback;
-      authInFlight = false;
-      if (resp.error) { showToast('Sign-in failed: ' + resp.error, 'error'); return; }
-      accessToken = resp.access_token;
-      tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) * 1000) - 60000;
-      await onSignedIn();
-    };
-    try {
-      tokenClient.requestAccessToken({ prompt: 'consent' });
-    } catch (e) {
-      tokenClient.callback = originalCallback;
-      authInFlight = false;
-      showToast('Sign-in failed to start. Please try again.', 'error');
-    }
-  }
-
-  function signOut() {
-    google.accounts.oauth2.revoke(accessToken, () => {});
-    accessToken = null; tokenExpiresAt = 0; sheetId = null; budgetSheetId = null;
-    userData = { expenses: [], bills: [], scheduled: [], balances: [], transactions: [] };
-    budgetData = { targets: [] };
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('auth-screen').style.display = 'flex';
-    const panel = document.getElementById('plaid-panel');
-    if (panel) panel.remove();
-    document.querySelectorAll('button').forEach(el => {
-      if (el.textContent && el.textContent.includes('Bank Sync')) el.remove();
-    });
-  }
-
-  async function onSignedIn() {
-    document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'flex';
-    document.getElementById('app').style.flexDirection = 'column';
-
-    let profile = {};
-    try {
-      profile = await fetchProfile();
-    } catch (e) {
-      profile = {};
-    }
-    const initials = (profile.name || 'U').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
-    document.getElementById('user-avatar').textContent = initials;
-    document.getElementById('user-name-display').textContent = profile.name || 'My Account';
-
-    await ensureSheet();
-    await ensureBudgetSheet();
-    await flushQueue();
-    await loadAllData();
-    await loadBudgetData();
-    renderDashboard();
-    setDefaultDates();
-    updateBudgetMonthLabel();
-    showWelcomeIfNeeded();
-    initPlaidUI();
-  }
-
-  async function fetchProfile() {
-    const r = await gFetch('https://www.googleapis.com/oauth2/v3/userinfo');
-    return r.ok ? await r.json() : {};
-  }
-
-  // ---- Token lifecycle ----
-
-  function isTokenValid() {
-    return !!accessToken && Date.now() < tokenExpiresAt;
-  }
-
-  function ensureToken() {
-    if (isTokenValid()) return Promise.resolve();
-    if (authInFlight) return Promise.reject(new Error('sign-in already in progress'));
-    if (refreshInFlight) return refreshInFlight;
-    refreshInFlight = new Promise((resolve, reject) => {
-      let settled = false;
-      const originalCallback = tokenClient.callback;
-      const timer = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        tokenClient.callback = originalCallback;
-        refreshInFlight = null;
-        reject(new Error('silent refresh timed out'));
-      }, 8000);
-      tokenClient.callback = async (resp) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        tokenClient.callback = originalCallback;
-        refreshInFlight = null;
-        if (resp.error) { reject(new Error(resp.error)); return; }
-        accessToken = resp.access_token;
-        tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) * 1000) - 60000;
-        resolve();
-      };
-      try {
-        tokenClient.requestAccessToken({ prompt: '' });
-      } catch (e) {
-        clearTimeout(timer);
-        settled = true;
-        tokenClient.callback = originalCallback;
-        refreshInFlight = null;
-        reject(e);
-      }
-    });
-    return refreshInFlight;
-  }
-
-  function handleSessionExpired() {
-    accessToken = null;
-    tokenExpiresAt = 0;
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('auth-screen').style.display = 'flex';
-    showToast('Your Google session expired. Sign in again to keep syncing.', 'error');
-  }
-
-  // ---- Google Sheets helpers ----
-
-  async function gFetch(url, opts = {}) {
-    try {
-      await ensureToken();
-    } catch (e) {
-      handleSessionExpired();
-      throw new Error('SESSION_EXPIRED');
-    }
-    opts.headers = { ...(opts.headers || {}), Authorization: 'Bearer ' + accessToken };
-    let res = await fetch(url, opts);
-    if (res.status === 401) {
-      tokenExpiresAt = 0;
-      try {
-        await ensureToken();
-      } catch (e) {
-        handleSessionExpired();
-        throw new Error('SESSION_EXPIRED');
-      }
-      opts.headers = { ...(opts.headers || {}), Authorization: 'Bearer ' + accessToken };
-      res = await fetch(url, opts);
-      if (res.status === 401) {
-        handleSessionExpired();
-        throw new Error('SESSION_EXPIRED');
-      }
-    }
-    return res;
-  }
-
-  async function ensureSheet() {
-    const search = await gFetch(
-      `https://www.googleapis.com/drive/v3/files?q=name='${SHEET_TITLE}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false&fields=files(id,name)`
-    );
-    const data = await search.json();
-    if (data.files && data.files.length > 0) {
-      sheetId = data.files[0].id;
-      await ensureTabs();
-      return;
-    }
-    const create = await gFetch('https://sheets.googleapis.com/v4/spreadsheets', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        properties: { title: SHEET_TITLE },
-        sheets: Object.values(TABS).map(t => ({ properties: { title: t } }))
-      })
-    });
-    const sheet = await create.json();
-    sheetId = sheet.spreadsheetId;
-    await addHeaders();
-  }
-
-  async function ensureTabs() {
-    const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`);
-    const data = await r.json();
-    const existing = (data.sheets || []).map(s => s.properties.title);
-    const newTabs = [];
-    const requests = [];
-    for (const t of Object.values(TABS)) {
-      if (!existing.includes(t)) {
-        requests.push({ addSheet: { properties: { title: t } } });
-        newTabs.push(t);
-      }
-    }
-    if (requests.length) {
-      await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requests })
-      });
-      await addHeadersForTabs(newTabs);
-    }
-  }
-
-  async function ensureBudgetSheet() {
-    const search = await gFetch(
-      `https://www.googleapis.com/drive/v3/files?q=name='${BUDGET_SHEET_TITLE}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false&fields=files(id,name)`
-    );
-    const data = await search.json();
-    if (data.files && data.files.length > 0) {
-      budgetSheetId = data.files[0].id;
-      return;
-    }
-    const create = await gFetch('https://sheets.googleapis.com/v4/spreadsheets', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        properties: { title: BUDGET_SHEET_TITLE },
-        sheets: [{ properties: { title: BUDGET_TABS.targets } }]
-      })
-    });
-    const sheet = await create.json();
-    budgetSheetId = sheet.spreadsheetId;
-    await addBudgetHeaders();
-  }
-
-  async function addBudgetHeaders() {
-    await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${budgetSheetId}/values/${BUDGET_TABS.targets}!A1?valueInputOption=RAW`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ values: [['Category','MonthlyLimit']] })
-    });
-  }
-
-  function openBudgetSheet() {
-    if (budgetSheetId) window.open(`https://docs.google.com/spreadsheets/d/${budgetSheetId}`, '_blank');
-  }
-
-  async function loadBudgetData() {
-    const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${budgetSheetId}/values/${BUDGET_TABS.targets}`);
-    const data = await r.json();
-    const rows = (data.values || []).slice(1);
-    budgetData.targets = rows.map(r => ({ category: r[0], limit: parseFloat(r[1]) || 0 }));
-  }
-
-  async function saveBudgetTarget() {
-    const cat = document.getElementById('budget-cat').value;
-    const limit = parseFloat(document.getElementById('budget-limit').value);
-    if (!cat || isNaN(limit) || limit <= 0) { showToast('Enter a category and a limit above zero.', 'error'); return; }
-
-    const existing = budgetData.targets.findIndex(t => t.category === cat);
-    if (existing >= 0) {
-      const rowNum = existing + 2;
-      await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${budgetSheetId}/values/${BUDGET_TABS.targets}!A${rowNum}:B${rowNum}?valueInputOption=RAW`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ values: [[cat, limit]] })
-      });
-      budgetData.targets[existing].limit = limit;
-    } else {
-      await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${budgetSheetId}/values/${BUDGET_TABS.targets}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ values: [[cat, limit]] })
-      });
-      budgetData.targets.push({ category: cat, limit });
-    }
-    document.getElementById('budget-limit').value = '';
-    renderBudget();
-    showToast('Budget target saved for ' + cat + '.', 'success');
-  }
-
-  function updateBudgetMonthLabel() {
-    const now = new Date();
-    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    const el = document.getElementById('budget-month-label');
-    if (el) el.textContent = months[now.getMonth()] + ' ' + now.getFullYear();
-  }
-
-  function safeParseDate(str) {
-    if (!str) return new Date('invalid');
-    if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str + 'T00:00:00');
-    return new Date(str);
-  }
-
-  function getMonthlySpendingByCategory() {
-    const now = new Date();
-    const spending = {};
-    userData.expenses.forEach(e => {
-      const d = safeParseDate(e.date);
-      if (!isNaN(d) && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
-        const cat = e.category || 'Other';
-        spending[cat] = (spending[cat] || 0) + e.amount;
-      }
-    });
-    return spending;
-  }
-
-  function renderBudget() {
-    updateBudgetMonthLabel();
-    const spending = getMonthlySpendingByCategory();
-    const tbody = document.getElementById('budget-tbody');
-
-    const allCats = new Set([
-      ...budgetData.targets.map(t => t.category),
-      ...Object.keys(spending)
-    ]);
-
-    if (!allCats.size) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">Set a budget target to get started.</div></td></tr>';
-      drawPieChart([], []);
-      return;
-    }
-
-    const rows = [];
-    allCats.forEach(cat => {
-      const target = budgetData.targets.find(t => t.category === cat);
-      const spent = spending[cat] || 0;
-      const limit = target ? target.limit : 0;
-      const remaining = limit > 0 ? limit - spent : null;
-      const pct = limit > 0 ? (spent / limit) * 100 : null;
-      let badge = '';
-      if (pct === null) {
-        badge = '<span class="badge upcoming">No target</span>';
-      } else if (pct >= 100) {
-        badge = '<span class="badge overdue">Over budget</span>';
-      } else if (pct >= 80) {
-        badge = '<span class="badge upcoming">Near limit</span>';
-      } else {
-        badge = '<span class="badge paid">On track</span>';
-      }
-      rows.push({ cat, limit, spent, remaining, badge });
-    });
-
-    rows.sort((a, b) => b.spent - a.spent);
-
-    tbody.innerHTML = rows.map(r => `
-      <tr>
-        <td>${r.cat}</td>
-        <td class="mono">${r.limit > 0 ? fmt(r.limit) : '--'}</td>
-        <td class="mono" style="color:var(--danger);">${fmt(r.spent)}</td>
-        <td class="mono" style="color:${r.remaining !== null ? (r.remaining < 0 ? 'var(--danger)' : 'var(--accent2)') : 'var(--muted)'};">
-          ${r.remaining !== null ? fmt(r.remaining) : '--'}
-        </td>
-        <td>${r.badge}</td>
-      </tr>
-    `).join('');
-
-    const labels = rows.map(r => r.cat);
-    const values = rows.map(r => r.spent);
-    drawPieChart(labels, values);
-  }
-
-  function drawPieChart(labels, values) {
-    const canvas = document.getElementById('budget-pie');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const W = canvas.width, H = canvas.height;
-    ctx.clearRect(0, 0, W, H);
-
-    const total = values.reduce((s, v) => s + v, 0);
-    if (!total) {
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--border') || '#2a2f42';
-      ctx.beginPath();
-      ctx.arc(W/2, H/2, W/2 - 10, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.font = '12px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('No spending yet', W/2, H/2);
-      document.getElementById('budget-legend').innerHTML = '';
-      return;
-    }
-
-    let startAngle = -Math.PI / 2;
-    const legend = [];
-    values.forEach((val, i) => {
-      const slice = (val / total) * Math.PI * 2;
-      const color = PIE_COLORS[i % PIE_COLORS.length];
-      ctx.beginPath();
-      ctx.moveTo(W/2, H/2);
-      ctx.arc(W/2, H/2, W/2 - 10, startAngle, startAngle + slice);
-      ctx.closePath();
-      ctx.fillStyle = color;
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      legend.push({ label: labels[i], color, pct: Math.round((val / total) * 100), amount: val });
-      startAngle += slice;
-    });
-
-    ctx.beginPath();
-    ctx.arc(W/2, H/2, W/4, 0, Math.PI * 2);
-    const bg = document.body.classList.contains('light') ? '#f4f6fb' : '#181c27';
-    ctx.fillStyle = bg;
-    ctx.fill();
-
-    ctx.fillStyle = document.body.classList.contains('light') ? '#1a2035' : '#e4e8f0';
-    ctx.font = 'bold 14px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(fmt(total), W/2, H/2 + 5);
-    ctx.font = '10px Inter, sans-serif';
-    ctx.fillStyle = '#7a84a0';
-    ctx.fillText('spent', W/2, H/2 + 18);
-
-    document.getElementById('budget-legend').innerHTML = legend.map(l => `
-      <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
-        <span style="width:10px;height:10px;border-radius:2px;background:${l.color};flex-shrink:0;display:inline-block;"></span>
-        <span style="color:var(--text);">${l.label}</span>
-        <span style="color:var(--muted);margin-left:auto;">${l.pct}%</span>
-      </div>
-    `).join('');
-  }
-
-  const ALL_HEADERS = {
-    [TABS.expenses]:     [['Date','Description','Category','Account','Amount']],
-    [TABS.bills]:        [['Name','Amount','DueDay','Account','Frequency']],
-    [TABS.scheduled]:    [['Name','Amount','DueDate','Account','Status']],
-    [TABS.balances]:     [['Account','StartingBalance','CurrentBalance','LastUpdated','Color','LowBalanceThreshold']],
-    [TABS.transactions]: [['Date','Type','Description','Account','Amount']]
-  };
-
-  async function addHeadersForTabs(tabs) {
-    const data = tabs.filter(t => ALL_HEADERS[t]).map(t => ({ range: `${t}!A1`, values: ALL_HEADERS[t] }));
-    if (!data.length) return;
-    await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchUpdate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ valueInputOption: 'RAW', data })
-    });
-  }
-
-  async function addHeaders() {
-    const data = Object.entries(ALL_HEADERS).map(([tab, vals]) => ({
-      range: `${tab}!A1`,
-      values: vals
-    }));
-    await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchUpdate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ valueInputOption: 'RAW', data })
-    });
-  }
-
-  // ---- Offline / failed-write queue ----
-
-  const QUEUE_KEY = 'budget_pending_writes';
-
-  function getQueue() {
-    try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); }
-    catch { return []; }
-  }
-
-  function setQueue(q) {
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
-    updateSyncBanner();
-  }
-
-  function queueWrite(item) {
-    const q = getQueue();
-    q.push(item);
-    setQueue(q);
-  }
-
-  function updateSyncBanner() {
-    let banner = document.getElementById('sync-banner');
-    const count = getQueue().length;
-    if (!banner) {
-      banner = document.createElement('div');
-      banner.id = 'sync-banner';
-      banner.style.cssText = 'display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--warn);color:#1a1a1a;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.3);cursor:pointer;';
-      banner.onclick = () => flushQueue();
-      document.body.appendChild(banner);
-    }
-    if (count > 0) {
-      banner.textContent = count + (count === 1 ? ' entry' : ' entries') + ' waiting to sync. Tap to retry.';
-      banner.style.display = 'block';
-    } else {
-      banner.style.display = 'none';
-    }
-  }
-
-  let flushing = false;
-  async function flushQueue() {
-    if (flushing) return;
-    const q = getQueue();
-    if (!q.length || !sheetId) { updateSyncBanner(); return; }
-    flushing = true;
-    try {
-      while (getQueue().length) {
-        const item = getQueue()[0];
-        if (item.kind === 'append') {
-          await rawAppend(item.tab, item.row);
-        } else if (item.kind === 'update') {
-          await rawUpdateCell(item.tab, item.rowIndex, item.colIndex, item.value);
-        }
-        const rest = getQueue().slice(1);
-        setQueue(rest);
-      }
-      showToast('All pending entries synced to your sheet.', 'success');
-    } catch (e) {
-    } finally {
-      flushing = false;
-      updateSyncBanner();
-    }
-  }
-
-  async function rawAppend(tab, row) {
-    const res = await gFetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ values: [row] })
-      }
-    );
-    if (!res.ok) throw new Error('Append failed: ' + res.status);
-    return res;
-  }
-
-  async function appendRow(tab, row) {
-    try {
-      await rawAppend(tab, row);
-      return true;
-    } catch (e) {
-      queueWrite({ kind: 'append', tab, row });
-      showToast('Not synced to your sheet yet. Saved locally and will retry.', 'error');
-      return false;
-    }
-  }
-
-  async function readSheet(tab) {
-    const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}?_=${Date.now()}`, { cache: 'no-store' });
-    const data = await r.json();
-    return (data.values || []).slice(1);
-  }
-
-  async function deleteRow(tab, rowIndex) {
-    const sheetMeta = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`);
-    const meta = await sheetMeta.json();
-    const sheetObj = meta.sheets.find(s => s.properties.title === tab);
-    if (!sheetObj) return;
-    const sheetIdNum = sheetObj.properties.sheetId;
-    await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        requests: [{
-          deleteDimension: {
-            range: { sheetId: sheetIdNum, dimension: 'ROWS', startIndex: rowIndex + 1, endIndex: rowIndex + 2 }
-          }
-        }]
-      })
-    });
-  }
-
-  async function rawUpdateCell(tab, rowIndex, colIndex, value) {
-    const col = String.fromCharCode(65 + colIndex);
-    const row = rowIndex + 2;
-    const res = await gFetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}!${col}${row}?valueInputOption=RAW`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ values: [[value]] })
-      }
-    );
-    if (!res.ok) throw new Error('Update failed: ' + res.status);
-    return res;
-  }
-
-  async function updateCell(tab, rowIndex, colIndex, value) {
-    try {
-      await rawUpdateCell(tab, rowIndex, colIndex, value);
-      return true;
-    } catch (e) {
-      queueWrite({ kind: 'update', tab, rowIndex, colIndex, value });
-      showToast('Not synced to your sheet yet. Saved locally and will retry.', 'error');
-      return false;
-    }
-  }
-
-  function openSheetUrl() {
-    if (sheetId) window.open(`https://docs.google.com/spreadsheets/d/${sheetId}`, '_blank');
-  }
-
-  // ---- Load all data ----
-
-  async function loadAllData() {
-    const [expenses, bills, scheduled, balances, transactions] = await Promise.all([
-      readSheet(TABS.expenses),
-      readSheet(TABS.bills),
-      readSheet(TABS.scheduled),
-      readSheet(TABS.balances),
-      readSheet(TABS.transactions)
-    ]);
-    userData.expenses     = expenses.map((r, i) => ({ date: r[0], desc: r[1], category: r[2], account: r[3], amount: parseFloat(r[4]) || 0, _seq: i }));
-    userData.bills        = bills.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, day: r[2], account: r[3], freq: r[4] }));
-    userData.scheduled    = scheduled.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, date: r[2], account: r[3], status: r[4] || 'Upcoming' }));
-    userData.balances     = balances.map(r => {
-      const isNewSchema = r.length >= 4;
-      return {
-        account: r[0],
-        startingBalance: isNewSchema ? (parseFloat(r[1]) || 0) : (parseFloat(r[1]) || 0),
-        balance: isNewSchema ? (parseFloat(r[2]) || 0) : (parseFloat(r[1]) || 0),
-        updated: isNewSchema ? r[3] : r[2],
-        color: (isNewSchema && r[4]) ? r[4] : null,
-        lowBalanceThreshold: (r[5] !== undefined && r[5] !== '') ? (parseFloat(r[5]) || 0) : 100
-      };
-    });
-    await ensureAccountColors();
-    userData.transactions = transactions.map((r, i) => ({ date: r[0], type: r[1], desc: r[2], account: r[3], amount: parseFloat(r[4]) || 0, _seq: i }));
-    renderAll();
-  }
-
-  // ---- Add records ----
-
-  function usedAccountColors() {
-    return new Set(userData.balances.map(b => b.color).filter(Boolean));
-  }
-
-  function nextAvailableColor() {
-    const used = usedAccountColors();
-    return ACCOUNT_COLORS.find(c => !used.has(c)) || ACCOUNT_COLORS[0];
-  }
-
-  async function ensureAccountColors() {
-    for (let i = 0; i < userData.balances.length; i++) {
-      if (!userData.balances[i].color) {
-        const color = nextAvailableColor();
-        userData.balances[i].color = color;
-        await updateCell(TABS.balances, i, 4, color);
-      }
-    }
-  }
-
-  async function setAccountColor(index, color) {
-    const takenBy = userData.balances.findIndex((b, i) => i !== index && b.color === color);
-    if (takenBy >= 0) {
-      showToast('That color is already used by ' + userData.balances[takenBy].account + '.', 'error');
-      renderBalances();
-      return;
-    }
-    userData.balances[index].color = color;
-    await updateCell(TABS.balances, index, 4, color);
-    renderAll();
-  }
-
-  async function setAccountThreshold(index, value) {
-    const threshold = parseFloat(value);
-    if (isNaN(threshold) || threshold < 0) {
-      showToast('Enter a valid low balance amount.', 'error');
-      renderBalances();
-      return;
-    }
-    userData.balances[index].lowBalanceThreshold = threshold;
-    await updateCell(TABS.balances, index, 5, threshold);
-    renderAll();
-  }
-
-  async function deductFromBalance(accountName, amount) {
-    if (!accountName || !amount) return;
-    const idx = userData.balances.findIndex(b => b.account.toLowerCase() === accountName.toLowerCase());
-    if (idx < 0) return;
-    const newBal = userData.balances[idx].balance - amount;
-    const today = todayISO();
-    await updateCell(TABS.balances, idx, 2, newBal);
-    await updateCell(TABS.balances, idx, 3, today);
-    userData.balances[idx].balance = newBal;
-    userData.balances[idx].updated = today;
-  }
-
-  async function addToBalance(accountName, amount) {
-    if (!accountName || !amount) return;
-    const idx = userData.balances.findIndex(b => b.account.toLowerCase() === accountName.toLowerCase());
-    if (idx < 0) return;
-    const newBal = userData.balances[idx].balance + amount;
-    const today = todayISO();
-    await updateCell(TABS.balances, idx, 2, newBal);
-    await updateCell(TABS.balances, idx, 3, today);
-    userData.balances[idx].balance = newBal;
-    userData.balances[idx].updated = today;
-  }
-
-  let editingExpenseIndex = null;
-
-  async function saveExpense() {
-    const d = v('exp-date'), desc = v('exp-desc'), amt = parseFloat(v('exp-amount')), acc = v('exp-account');
-    let cat = v('exp-category');
-    if (cat === 'Other') {
-      const custom = v('exp-custom-category').trim();
-      if (custom) cat = custom;
-    }
-    if (!d || !desc || !amt) { showToast('Fill in date, description, and amount.', 'error'); return; }
-
-    if (editingExpenseIndex !== null) {
-      const i = editingExpenseIndex;
-      const old = userData.expenses[i];
-      await addToBalance(old.account, old.amount);
-      await deductFromBalance(acc, amt);
-      await updateCell(TABS.expenses, i, 0, d);
-      await updateCell(TABS.expenses, i, 1, desc);
-      await updateCell(TABS.expenses, i, 2, cat);
-      await updateCell(TABS.expenses, i, 3, acc);
-      await updateCell(TABS.expenses, i, 4, amt);
-      userData.expenses[i] = { ...old, date: d, desc, category: cat, account: acc, amount: amt };
-      cancelEditExpense();
-      renderAll();
-      showToast('Expense updated.', 'success');
-      return;
-    }
-
-    const synced = await appendRow(TABS.expenses, [d, desc, cat, acc, amt]);
-    userData.expenses.unshift({ date: d, desc, category: cat, account: acc, amount: amt, _seq: Date.now() });
-    await logTransaction('Expense', desc, acc, amt);
-    await deductFromBalance(acc, amt);
-    clear('exp-desc'); clear('exp-amount');
-    const customInput = document.getElementById('exp-custom-category');
-    if (customInput) customInput.value = '';
-    renderAll();
-    if (synced) showToast('Expense saved and deducted from ' + acc + '.', 'success');
-  }
-
-  function editExpense(i) {
-    const e = userData.expenses[i];
-    editingExpenseIndex = i;
-    document.getElementById('exp-date').value = e.date;
-    document.getElementById('exp-desc').value = e.desc;
-    document.getElementById('exp-amount').value = e.amount;
-    document.getElementById('exp-account').value = e.account;
-    const catSelect = document.getElementById('exp-category');
-    const knownCategory = [...catSelect.options].some(o => o.value === e.category);
-    if (knownCategory) {
-      catSelect.value = e.category;
-    } else {
-      catSelect.value = 'Other';
-      document.getElementById('exp-custom-category').value = e.category;
-    }
-    toggleCustomCat();
-    document.getElementById('exp-submit-btn').textContent = 'Update expense';
-    document.getElementById('exp-cancel-btn').style.display = 'inline-block';
-    document.getElementById('exp-desc').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-
-  function cancelEditExpense() {
-    editingExpenseIndex = null;
-    clear('exp-date'); clear('exp-desc'); clear('exp-amount');
-    const customInput = document.getElementById('exp-custom-category');
-    if (customInput) customInput.value = '';
-    document.getElementById('exp-submit-btn').textContent = 'Save expense';
-    document.getElementById('exp-cancel-btn').style.display = 'none';
-  }
-
-  let editingBillIndex = null;
-
-  async function saveBill() {
-    const name = v('bill-name'), amt = parseFloat(v('bill-amount')), day = v('bill-day'), acc = v('bill-account'), freq = v('bill-freq');
-    if (!name || !amt || !day) { showToast('Fill in name, amount, and due day.', 'error'); return; }
-
-    if (editingBillIndex !== null) {
-      const i = editingBillIndex;
-      await updateCell(TABS.bills, i, 0, name);
-      await updateCell(TABS.bills, i, 1, amt);
-      await updateCell(TABS.bills, i, 2, day);
-      await updateCell(TABS.bills, i, 3, acc);
-      await updateCell(TABS.bills, i, 4, freq);
-      userData.bills[i] = { name, amount: amt, day, account: acc, freq };
-      cancelEditBill();
-      renderAll();
-      showToast('Bill updated.', 'success');
-      return;
-    }
-
-    await appendRow(TABS.bills, [name, amt, day, acc, freq]);
-    userData.bills.push({ name, amount: amt, day, account: acc, freq });
-    clear('bill-name'); clear('bill-amount'); clear('bill-day');
-    renderAll(); showToast('Bill saved.', 'success');
-  }
-
-  function editBill(i) {
-    const b = userData.bills[i];
-    editingBillIndex = i;
-    document.getElementById('bill-name').value = b.name;
-    document.getElementById('bill-amount').value = b.amount;
-    document.getElementById('bill-day').value = b.day;
-    document.getElementById('bill-account').value = b.account;
-    document.getElementById('bill-freq').value = b.freq;
-    document.getElementById('bill-submit-btn').textContent = 'Update bill';
-    document.getElementById('bill-cancel-btn').style.display = 'inline-block';
-    document.getElementById('bill-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-
-  function cancelEditBill() {
-    editingBillIndex = null;
-    clear('bill-name'); clear('bill-amount'); clear('bill-day');
-    document.getElementById('bill-submit-btn').textContent = 'Save bill';
-    document.getElementById('bill-cancel-btn').style.display = 'none';
-  }
-
-  let editingScheduledIndex = null;
-
-  async function saveScheduled() {
-    const name = v('sched-name'), amt = parseFloat(v('sched-amount')), date = v('sched-date'), acc = v('sched-account');
-    if (!name || !amt || !date) { showToast('Fill in name, amount, and due date.', 'error'); return; }
-
-    if (editingScheduledIndex !== null) {
-      const i = editingScheduledIndex;
-      const old = userData.scheduled[i];
-      await updateCell(TABS.scheduled, i, 0, name);
-      await updateCell(TABS.scheduled, i, 1, amt);
-      await updateCell(TABS.scheduled, i, 2, date);
-      await updateCell(TABS.scheduled, i, 3, acc);
-      userData.scheduled[i] = { ...old, name, amount: amt, date, account: acc };
-      cancelEditScheduled();
-      renderAll();
-      showToast('Payment updated.', 'success');
-      return;
-    }
-
-    await appendRow(TABS.scheduled, [name, amt, date, acc, 'Upcoming']);
-    userData.scheduled.push({ name, amount: amt, date, account: acc, status: 'Upcoming' });
-    clear('sched-name'); clear('sched-amount'); clear('sched-date');
-    renderAll(); showToast('Payment saved.', 'success');
-  }
-
-  function editScheduled(i) {
-    const p = userData.scheduled[i];
-    editingScheduledIndex = i;
-    document.getElementById('sched-name').value = p.name;
-    document.getElementById('sched-amount').value = p.amount;
-    document.getElementById('sched-date').value = p.date;
-    document.getElementById('sched-account').value = p.account;
-    document.getElementById('sched-submit-btn').textContent = 'Update payment';
-    document.getElementById('sched-cancel-btn').style.display = 'inline-block';
-    document.getElementById('sched-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-
-  function cancelEditScheduled() {
-    editingScheduledIndex = null;
-    clear('sched-name'); clear('sched-amount'); clear('sched-date');
-    document.getElementById('sched-submit-btn').textContent = 'Save payment';
-    document.getElementById('sched-cancel-btn').style.display = 'none';
-  }
-
-  async function addBalance() {
-    const acc = v('bal-account'), bal = parseFloat(v('bal-amount'));
-    if (!acc || isNaN(bal)) { showToast('Fill in account and balance.', 'error'); return; }
-    const today = todayISO();
-    const existing = userData.balances.findIndex(b => b.account.toLowerCase() === acc.toLowerCase());
-    if (existing >= 0) {
-      await updateCell(TABS.balances, existing, 2, bal);
-      await updateCell(TABS.balances, existing, 3, today);
-      userData.balances[existing].balance = bal;
-      userData.balances[existing].updated = today;
-    } else {
-      const color = nextAvailableColor();
-      const threshold = 100;
-      await appendRow(TABS.balances, [acc, bal, bal, today, color, threshold]);
-      userData.balances.push({ account: acc, startingBalance: bal, balance: bal, updated: today, color, lowBalanceThreshold: threshold });
-    }
-    clear('bal-account'); clear('bal-amount');
-    renderAll(); showToast('Starting balance set for ' + acc + '.', 'success');
-  }
-
-  async function logTransaction(type, desc, account, amount) {
-    const today = todayISO();
-    await appendRow(TABS.transactions, [today, type, desc, account, amount]);
-    userData.transactions.unshift({ date: today, type, desc, account, amount, _seq: Date.now() });
-  }
-
-  async function addDeposit() {
-    const desc = v('dep-desc'), amt = parseFloat(v('dep-amount')), acc = v('dep-account');
-    if (!desc || !amt || !acc) { showToast('Fill in description, amount, and account.', 'error'); return; }
-    await logTransaction('Deposit', desc, acc, amt);
-    await addToBalance(acc, amt);
-    clear('dep-desc'); clear('dep-amount');
-    renderAll(); showToast('Deposit of ' + fmt(amt) + ' added to ' + acc + '.', 'success');
-  }
-
-  async function transferMoney() {
-    const from = v('xfer-from'), to = v('xfer-to'), amt = parseFloat(v('xfer-amount'));
-    let desc = v('xfer-desc').trim();
-    if (!from || !to || !amt) { showToast('Fill in from, to, and amount.', 'error'); return; }
-    if (from === to) { showToast('Pick two different accounts to move money between.', 'error'); return; }
-    if (!desc) desc = 'Transfer between ' + from + ' and ' + to;
-    await logTransaction('Transfer Out', desc, from, amt);
-    await logTransaction('Transfer In', desc, to, amt);
-    await deductFromBalance(from, amt);
-    await addToBalance(to, amt);
-    clear('xfer-desc'); clear('xfer-amount');
-    renderAll(); showToast(fmt(amt) + ' moved from ' + from + ' to ' + to + '.', 'success');
-  }
-
-  async function balanceTransactionsCheck() {
-    const results = [];
-    for (const bal of userData.balances) {
-      const start = bal.startingBalance || 0;
-      const expenses = userData.expenses
-        .filter(e => e.account.toLowerCase() === bal.account.toLowerCase())
-        .reduce((s, e) => s + e.amount, 0);
-      const deposits = userData.transactions
-        .filter(t => t.type === 'Deposit' && t.account.toLowerCase() === bal.account.toLowerCase())
-        .reduce((s, t) => s + t.amount, 0);
-      const transfersOut = userData.transactions
-        .filter(t => t.type === 'Transfer Out' && t.account.toLowerCase() === bal.account.toLowerCase())
-        .reduce((s, t) => s + t.amount, 0);
-      const transfersIn = userData.transactions
-        .filter(t => t.type === 'Transfer In' && t.account.toLowerCase() === bal.account.toLowerCase())
-        .reduce((s, t) => s + t.amount, 0);
-      const expected = start - expenses + deposits - transfersOut + transfersIn;
-      const current = bal.balance;
-      const diff = Math.abs(expected - current);
-      results.push({ account: bal.account, start, expenses, deposits, transfersOut, transfersIn, expected, current, diff, ok: diff < 0.02 });
-    }
-
-    const el = document.getElementById('balance-check-results');
-    if (!el) return;
-    if (!results.length) {
-      el.innerHTML = '<div class="empty-state">No accounts found. Set a starting balance first.</div>';
-      return;
-    }
-
-    el.innerHTML = results.map(r => `
-      <div style="background:${r.ok ? 'rgba(56,217,169,0.08)' : 'rgba(247,111,111,0.08)'};border:1px solid ${r.ok ? 'var(--accent2)' : 'var(--danger)'};border-radius:10px;padding:16px 20px;margin-bottom:12px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-          <span style="font-weight:600;font-size:14px;">${r.account}</span>
-          <span style="font-size:12px;color:${r.ok ? 'var(--accent2)' : 'var(--danger)'};">${r.ok ? 'Balanced' : 'Discrepancy of ' + fmt(r.diff)}</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;color:var(--muted);">
-          <div>Starting balance: <span style="color:var(--text);">${fmt(r.start)}</span></div>
-          <div>Total deposits: <span style="color:var(--accent2);">+${fmt(r.deposits)}</span></div>
-          <div>Total expenses: <span style="color:var(--danger);">-${fmt(r.expenses)}</span></div>
-          <div>Transfers in: <span style="color:var(--accent2);">+${fmt(r.transfersIn)}</span></div>
-          <div>Transfers out: <span style="color:var(--muted);">-${fmt(r.transfersOut)}</span></div>
-          <div>Expected balance: <span style="color:var(--text);">${fmt(r.expected)}</span></div>
-          <div>App balance: <span style="color:var(--text);">${fmt(r.current)}</span></div>
-          ${!r.ok ? `<div><button class="btn btn-primary btn-sm" onclick="fixBalance('${r.account}', ${r.expected})">Correct to ${fmt(r.expected)}</button></div>` : ''}
-        </div>
-      </div>
-    `).join('');
-  }
-
-  async function fixBalance(account, correctedAmount) {
-    const idx = userData.balances.findIndex(b => b.account.toLowerCase() === account.toLowerCase());
-    if (idx < 0) return;
-    const today = todayISO();
-    await updateCell(TABS.balances, idx, 2, correctedAmount);
-    await updateCell(TABS.balances, idx, 3, today);
-    userData.balances[idx].balance = correctedAmount;
-    userData.balances[idx].updated = today;
-    renderAll();
-    balanceTransactionsCheck();
-    showToast(account + ' corrected to ' + fmt(correctedAmount) + '.', 'success');
-  }
-
-  async function resetAllData() {
-    if (!confirm('Are you sure you want to reset and clear all entries? This cannot be undone.')) return;
-    showToast('Resetting... please wait.', 'success');
-
-    const expRows = userData.expenses.length;
-    const txRows = userData.transactions.length;
-
-    try {
-      const keys = Object.keys(localStorage).filter(k => k.startsWith('billpaid:'));
-      keys.forEach(k => localStorage.removeItem(k));
-    } catch(e) {}
-
-    if (expRows > 0) {
-      await wipeSheetRows(TABS.expenses, expRows);
-    }
-    if (txRows > 0) {
-      await wipeSheetRows(TABS.transactions, txRows);
-    }
-    for (let i = 0; i < userData.scheduled.length; i++) {
-      if (userData.scheduled[i].status === 'Paid') {
-        await updateCell(TABS.scheduled, i, 4, 'Upcoming');
-        userData.scheduled[i].status = 'Upcoming';
-      }
-    }
-    if (userData.balances.length > 0) {
-      await wipeSheetRows(TABS.balances, userData.balances.length);
-    }
-
-    userData.expenses = [];
-    userData.transactions = [];
-    userData.balances = [];
-    renderAll();
-    showToast('All data reset. Set your starting balances to begin fresh.', 'success');
-  }
-
-  async function wipeSheetRows(tab, count) {
-    const meta = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`);
-    const metaData = await meta.json();
-    const sheetObj = metaData.sheets.find(s => s.properties.title === tab);
-    if (!sheetObj) return;
-    const sheetIdNum = sheetObj.properties.sheetId;
-    await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        requests: [{
-          deleteDimension: {
-            range: { sheetId: sheetIdNum, dimension: 'ROWS', startIndex: 1, endIndex: count + 1 }
-          }
-        }]
-      })
-    });
-  }
-
-  // ---- Delete records ----
-
-  async function deleteExpense(i) {
-    await deleteRow(TABS.expenses, i);
-    userData.expenses.splice(i, 1);
-    renderAll(); showToast('Expense removed.', 'success');
-  }
-
-  async function deleteBill(i) {
-    await deleteRow(TABS.bills, i);
-    userData.bills.splice(i, 1);
-    renderAll(); showToast('Bill removed.', 'success');
-  }
-
-  async function deleteScheduled(i) {
-    await deleteRow(TABS.scheduled, i);
-    userData.scheduled.splice(i, 1);
-    renderAll(); showToast('Payment removed.', 'success');
-  }
-
-  async function deleteAccount(i) {
-    if (!confirm('Remove this account? This will not affect your transaction history.')) return;
-    await deleteRow(TABS.balances, i);
-    userData.balances.splice(i, 1);
-    renderAll(); showToast('Account removed.', 'success');
-  }
-
-  async function markPaid(i) {
-    const payment = userData.scheduled[i];
-    const wasPaid = payment.status === 'Paid';
-    const newStatus = wasPaid ? 'Upcoming' : 'Paid';
-    await updateCell(TABS.scheduled, i, 4, newStatus);
-    userData.scheduled[i].status = newStatus;
-    if (!wasPaid) {
-      await deductFromBalance(payment.account, payment.amount);
-      showToast('Marked as paid and deducted from ' + payment.account + '.', 'success');
-    } else {
-      await addToBalance(payment.account, payment.amount);
-      showToast('Marked as unpaid and added back to ' + payment.account + '.', 'success');
-    }
-    renderAll();
-  }
-
-  // ---- Render ----
-
-  function populateAccountSelects() {
-    const selects = document.querySelectorAll('select.account-select');
-    const accountNames = userData.balances.map(b => b.account).filter(Boolean);
-    selects.forEach(sel => {
-      const extras = (sel.dataset.extra || '').split(',').map(s => s.trim()).filter(Boolean);
-      const previous = sel.value;
-      const options = [...accountNames, ...extras];
-      sel.innerHTML = options.map(a => `<option>${a}</option>`).join('');
-      if (options.includes(previous)) sel.value = previous;
-    });
-  }
-
-  function renderAll() {
-    populateAccountSelects();
-    renderDashboard();
-    renderExpenses();
-    renderBills();
-    renderScheduled();
-    renderBalances();
-    renderTransactions();
-    renderBudget();
-  }
-
-  let calYear, calMonth;
-
-  function renderDashboard() {
-    const now = new Date();
-    if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
-
-    const cardsContainer = document.getElementById('account-cards-container');
-    cardsContainer.innerHTML = userData.balances.map(b => {
-      const threshold = b.lowBalanceThreshold ?? 100;
-      const isLow = b.balance < threshold;
-      return `
-      <div class="card">
-        <div class="card-label" style="color:${b.color || 'inherit'};">${b.account}</div>
-        <div class="card-value ${isLow ? 'warn' : 'green'}">${fmt(b.balance)}</div>
-        <div class="card-sub">${isLow ? 'Below ' + fmt(threshold) + ' alert' : 'Current balance'}</div>
-      </div>
-    `;
-    }).join('');
-
-    const total = userData.balances.reduce((s, b) => s + b.balance, 0);
-    document.getElementById('dash-total').textContent = fmt(total);
-    document.getElementById('dash-total-sub').textContent =
-      userData.balances.map(b => b.account).join(' + ') + (userData.balances.length ? ' combined' : 'No accounts yet');
-
-    const monthSpent = userData.expenses
-      .filter(e => { const d = safeParseDate(e.date); return !isNaN(d) && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); })
-      .reduce((s, e) => s + e.amount, 0);
-    document.getElementById('dash-spent').textContent = fmt(monthSpent);
-
-    const today = new Date(); today.setHours(0,0,0,0);
-    const in14 = new Date(today); in14.setDate(in14.getDate() + 14);
-    const upcoming = [];
-
-    userData.scheduled.filter(p => p.status !== 'Paid').forEach(p => {
-      const d = new Date(p.date + 'T00:00:00');
-      if (d >= today && d <= in14) upcoming.push({ name: p.name, date: p.date, amount: p.amount });
-    });
-
-    userData.bills.forEach(b => {
-      const day = parseInt(b.day);
-      [0, 1].forEach(mo => {
-        const d = new Date(now.getFullYear(), now.getMonth() + mo, day);
-        if (d >= today && d <= in14) {
-          const paid = isBillPaidThisMonth(b.name);
-          upcoming.push({ name: b.name, date: d.toISOString().slice(0,10), amount: b.amount, paid });
-        }
-      });
-    });
-
-    upcoming.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    const upEl = document.getElementById('upcoming-list-body');
-    if (!upcoming.length) {
-      upEl.innerHTML = '<div class="empty-state">No payments due in the next 14 days.</div>';
-    } else {
-      upEl.innerHTML = upcoming.map(p => `
-        <div class="list-row">
-          <div class="list-row-left">
-            <div class="list-row-name">${p.name} ${p.paid ? '<span class="badge paid" style="margin-left:6px;">Paid</span>' : ''}</div>
-            <div class="list-row-date">${fmtDate(p.date)}</div>
-          </div>
-          <div class="list-row-amount ${p.paid ? 'green' : 'red'}">${fmt(p.amount)}</div>
-        </div>
-      `).join('');
-    }
-
-    const recentTx = [...(userData.transactions || [])]
-      .sort((a, b) => (safeParseDate(b.date) - safeParseDate(a.date)) || ((b._seq || 0) - (a._seq || 0)))
-      .slice(0, 5);
-    const reEl = document.getElementById('recent-expenses-body');
-    if (!recentTx.length) {
-      reEl.innerHTML = '<div class="empty-state">No transactions logged yet.</div>';
-    } else {
-      reEl.innerHTML = recentTx.map(t => {
-        const isDeposit = t.type === 'Deposit';
-        const isTransferOut = t.type === 'Transfer Out';
-        const isTransferIn = t.type === 'Transfer In';
-        const isTransfer = isTransferOut || isTransferIn;
-        const amountClass = isDeposit ? 'green' : isTransfer ? 'muted' : 'red';
-        const amountPrefix = (isDeposit || isTransferIn) ? '+' : '-';
-        return `
-        <div class="list-row">
-          <div class="list-row-left">
-            <div class="list-row-name">${t.desc}</div>
-            <div class="list-row-date">${fmtDate(t.date)} · ${t.type} · ${t.account}</div>
-          </div>
-          <div class="list-row-amount ${amountClass}">${amountPrefix}${fmt(t.amount)}</div>
-        </div>
-      `;
-      }).join('');
-    }
-
-    renderCalendar();
-  }
-
-  function buildCalendarEvents() {
-    const events = {};
-    const now = new Date();
-
-    userData.scheduled.forEach(p => {
-      if (!p.date) return;
-      if (!events[p.date]) events[p.date] = [];
-      events[p.date].push({ name: p.name, amount: p.amount, label: p.status || 'Upcoming', type: 'scheduled', color: '#4f8ef7' });
-    });
-
-    userData.bills.forEach(b => {
-      for (let mo = -2; mo <= 3; mo++) {
-        const d = new Date(now.getFullYear(), now.getMonth() + mo, parseInt(b.day));
-        const key = d.toISOString().slice(0,10);
-        if (!events[key]) events[key] = [];
-        events[key].push({ name: b.name, amount: b.amount, label: 'Bill', type: 'bill', color: '#f7a84f' });
-      }
-    });
-
-    userData.expenses.forEach(e => {
-      if (!e.date) return;
-      const d = safeParseDate(e.date);
-      const key = isNaN(d) ? e.date : d.toISOString().slice(0,10);
-      if (!events[key]) events[key] = [];
-      events[key].push({ name: e.desc, amount: e.amount, label: e.category, type: 'expense', color: '#f76f6f' });
-    });
-
-    return events;
-  }
-
-  function renderCalendar() {
-    const events = buildCalendarEvents();
-    const firstDay = new Date(calYear, calMonth, 1);
-    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-    const startDow = firstDay.getDay();
-    const today = new Date(); today.setHours(0,0,0,0);
-
-    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    document.getElementById('cal-month-label').textContent = monthNames[calMonth] + ' ' + calYear;
-
-    let cells = '';
-    for (let i = 0; i < startDow; i++) {
-      cells += '<div style="min-height:90px;background:rgba(255,255,255,0.01);border-radius:6px;"></div>';
-    }
-
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dateStr = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
-      const dayEvents = events[dateStr] || [];
-      const isToday = new Date(calYear, calMonth, d).getTime() === today.getTime();
-
-      const dayNumStyle = isToday
-        ? 'display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-weight:600;'
-        : 'color:var(--text);';
-
-      const eventBlocks = dayEvents.slice(0, 3).map(ev => {
-        const truncName = ev.name.length > 10 ? ev.name.slice(0,10) + '...' : ev.name;
-        return `<div style="background:${ev.color}22;border-left:2px solid ${ev.color};border-radius:3px;padding:2px 4px;margin-top:2px;font-size:10px;color:${ev.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;" title="${ev.name} ${fmt(ev.amount)}">${truncName}</div>`;
-      }).join('');
-
-      const moreLabel = dayEvents.length > 3 ? `<div style="font-size:9px;color:var(--muted);margin-top:2px;">+${dayEvents.length - 3} more</div>` : '';
-
-      cells += `<div onclick="calDayClick('${dateStr}')" style="min-height:90px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:6px;padding:6px;cursor:${dayEvents.length ? 'pointer' : 'default'};transition:background 0.1s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='rgba(255,255,255,0.02)'">
-        <div style="font-size:11px;font-weight:500;margin-bottom:2px;${dayNumStyle}">${d}</div>
-        ${eventBlocks}
-        ${moreLabel}
-      </div>`;
-    }
-
-    document.getElementById('cal-grid').innerHTML = cells;
-  }
-
-  function calDayClick(dateStr) {
-    const events = buildCalendarEvents();
-    const dayEvents = events[dateStr];
-    const detail = document.getElementById('cal-detail');
-    if (!dayEvents || !dayEvents.length) { detail.style.display = 'none'; return; }
-    detail.style.display = 'block';
-    detail.innerHTML = `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;">${fmtDate(dateStr)}</div>` +
-      dayEvents.map(e => `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;margin-bottom:6px;border-radius:8px;background:${e.color}18;border-left:3px solid ${e.color};">
-          <div>
-            <span style="font-weight:500;color:var(--text);">${e.name}</span>
-            <span style="font-size:11px;color:var(--muted);margin-left:8px;">${e.label}</span>
-          </div>
-          <span style="font-family:var(--mono);font-size:13px;color:${e.color};">${fmt(e.amount)}</span>
-        </div>
-      `).join('');
-  }
-
-  function calPrev() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); }
-  function calNext() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
-
-  function renderExpenses() {
-    const tbody = document.getElementById('expenses-tbody');
-    if (!userData.expenses.length) {
-      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No expenses yet.</div></td></tr>';
-      return;
-    }
-    const sorted = userData.expenses
-      .map((e, i) => ({ e, i }))
-      .sort((a, b) => (safeParseDate(b.e.date) - safeParseDate(a.e.date)) || ((b.e._seq || 0) - (a.e._seq || 0)));
-    tbody.innerHTML = sorted.map(({ e, i }) => `
-      <tr>
-        <td>${fmtDate(e.date)}</td>
-        <td>${e.desc}</td>
-        <td>${e.category}</td>
-        <td>${e.account}</td>
-        <td class="mono">${fmt(e.amount)}</td>
-        <td><button class="btn btn-secondary btn-sm" onclick="editExpense(${i})">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteExpense(${i})">Remove</button></td>
-      </tr>
-    `).join('');
-  }
-
-  function billPaidKey(name) {
-    const now = new Date();
-    return 'billpaid:' + now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2,'0') + ':' + name.toLowerCase().replace(/\s+/g,'_');
-  }
-
-  function isBillPaidThisMonth(name) {
-    try { return localStorage.getItem(billPaidKey(name)) === 'paid'; } catch(e) { return false; }
-  }
-
-  async function markBillPaid(i) {
-    const bill = userData.bills[i];
-    const key = billPaidKey(bill.name);
-    const wasPaid = isBillPaidThisMonth(bill.name);
-    try {
-      if (wasPaid) {
-        localStorage.removeItem(key);
-      } else {
-        localStorage.setItem(key, 'paid');
-      }
-    } catch(e) {}
-    if (!wasPaid) {
-      await deductFromBalance(bill.account, bill.amount);
-      showToast(bill.name + ' marked as paid and deducted from ' + bill.account + '.', 'success');
-    } else {
-      await addToBalance(bill.account, bill.amount);
-      showToast(bill.name + ' marked as unpaid and added back to ' + bill.account + '.', 'success');
-    }
-    renderBills();
-    renderDashboard();
-  }
-
-  function renderBills() {
-    const tbody = document.getElementById('bills-tbody');
-    if (!userData.bills.length) {
-      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">No bills added yet.</div></td></tr>';
-      return;
-    }
-    tbody.innerHTML = userData.bills.map((b, i) => {
-      const paid = isBillPaidThisMonth(b.name);
-      const badge = paid
-        ? '<span class="badge paid">Paid</span>'
-        : '<span class="badge upcoming">Unpaid</span>';
-      const btnLabel = paid ? 'Mark unpaid' : 'Mark paid';
-      const btnClass = paid ? 'btn-secondary' : 'btn-primary';
-      return `
-        <tr>
-          <td>${b.name}</td>
-          <td class="mono">${fmt(b.amount)}</td>
-          <td>Day ${b.day}</td>
-          <td>${b.account}</td>
-          <td>${b.freq}</td>
-          <td>${badge}</td>
-          <td style="display:flex;gap:6px;">
-            <button class="btn ${btnClass} btn-sm" onclick="markBillPaid(${i})">${btnLabel}</button>
-            <button class="btn btn-secondary btn-sm" onclick="editBill(${i})">Edit</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteBill(${i})">Remove</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
-  }
-
-  function renderScheduled() {
-    const tbody = document.getElementById('scheduled-tbody');
-    if (!userData.scheduled.length) {
-      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No scheduled payments yet.</div></td></tr>';
-      return;
-    }
-    tbody.innerHTML = userData.scheduled.map((p, i) => {
-      const status = p.status || 'Upcoming';
-      const badge = status === 'Paid' ? 'paid' : isOverdue(p.date) ? 'overdue' : 'upcoming';
-      const badgeLabel = badge === 'overdue' ? 'Overdue' : status;
-      return `
-        <tr>
-          <td>${p.name}</td>
-          <td class="mono">${fmt(p.amount)}</td>
-          <td>${fmtDate(p.date)}</td>
-          <td>${p.account}</td>
-          <td><span class="badge ${badge}">${badgeLabel}</span></td>
-          <td style="display:flex;gap:6px;">
-            ${status !== 'Paid' ? `<button class="btn btn-secondary btn-sm" onclick="markPaid(${i})">Mark paid</button>` : ''}
-            <button class="btn btn-secondary btn-sm" onclick="editScheduled(${i})">Edit</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteScheduled(${i})">Remove</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
-  }
-
-  function renderBalances() {
-    const tbody = document.getElementById('balances-tbody');
-    if (!userData.balances.length) {
-      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">No accounts yet.</div></td></tr>';
-      return;
-    }
-    const used = usedAccountColors();
-    tbody.innerHTML = userData.balances.map((b, i) => {
-      const swatches = ACCOUNT_COLORS.map(c => {
-        const isCurrent = c === b.color;
-        const isTaken = used.has(c) && !isCurrent;
-        const ring = isCurrent ? '0 0 0 2px var(--bg), 0 0 0 4px ' + c : 'none';
-        const cursor = isTaken ? 'not-allowed' : 'pointer';
-        const opacity = isTaken ? '0.25' : '1';
-        const click = isTaken ? '' : `onclick="setAccountColor(${i}, '${c}')"`;
-        const title = isTaken ? 'Already used by another account' : c;
-        return `<span ${click} title="${title}" style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${c};cursor:${cursor};opacity:${opacity};box-shadow:${ring};"></span>`;
-      }).join('');
-      const threshold = b.lowBalanceThreshold ?? 100;
-      const isLow = b.balance < threshold;
-      return `
-      <tr>
-        <td style="color:${b.color || 'inherit'};font-weight:600;">${b.account}</td>
-        <td>
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:220px;">
-            ${swatches}
-          </div>
-        </td>
-        <td class="mono" style="color:var(--muted)">${fmt(b.startingBalance || 0)}</td>
-        <td class="mono" style="color:${isLow ? 'var(--warn)' : 'var(--accent2)'};">
-          ${fmt(b.balance)}
-          ${isLow ? '<span class="badge upcoming" style="margin-left:6px;">Low</span>' : ''}
-        </td>
-        <td>
-          <input type="number" value="${threshold}" step="1" min="0"
-            style="width:80px;padding:4px 8px;font-size:12px;"
-            onchange="setAccountThreshold(${i}, this.value)" />
-        </td>
-        <td style="color:var(--muted)">${b.updated}</td>
-        <td><button class="btn btn-danger btn-sm" onclick="deleteAccount(${i})">Remove</button></td>
-      </tr>
-    `;
-    }).join('');
-  }
-
-  function renderTransactions() {
-    const tbody = document.getElementById('transactions-tbody');
-    if (!tbody) return;
-    if (!userData.transactions || !userData.transactions.length) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">No transactions yet.</div></td></tr>';
-      return;
-    }
-    const sorted = [...userData.transactions]
-      .sort((a, b) => (safeParseDate(b.date) - safeParseDate(a.date)) || ((b._seq || 0) - (a._seq || 0)));
-    tbody.innerHTML = sorted.map(t => {
-      const isDeposit = t.type === 'Deposit';
-      const isTransferOut = t.type === 'Transfer Out';
-      const isTransferIn = t.type === 'Transfer In';
-      const isTransfer = isTransferOut || isTransferIn;
-      const badgeClass = isDeposit ? 'paid' : isTransfer ? 'upcoming' : 'overdue';
-      const amountColor = isDeposit ? 'var(--accent2)' : isTransfer ? 'var(--muted)' : 'var(--danger)';
-      const amountPrefix = (isDeposit || isTransferIn) ? '+' : '-';
-      return `
-        <tr>
-          <td>${fmtDate(t.date) || t.date}</td>
-          <td><span class="badge ${badgeClass}">${t.type}</span></td>
-          <td>${t.desc}</td>
-          <td>${t.account}</td>
-          <td class="mono" style="color:${amountColor};">${amountPrefix}${fmt(t.amount)}</td>
-        </tr>
-      `;
-    }).join('');
-  }
-
-  // ---- Utilities ----
-
-  function v(id) { return document.getElementById(id).value; }
-  function clear(id) { document.getElementById(id).value = ''; }
-  function fmt(n) { return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-
-  function todayISO() { return new Date().toISOString().slice(0,10); }
-
-  function fmtDate(str) {
-    if (!str) return '';
-    let d;
-    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
-      d = new Date(str + 'T00:00:00');
-    } else {
-      d = new Date(str);
-    }
-    if (isNaN(d.getTime())) return str;
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  }
-
-  function isOverdue(dateStr) {
-    const d = new Date(dateStr + 'T00:00:00');
-    const today = new Date(); today.setHours(0,0,0,0);
-    return d < today;
-  }
-
-  function showScreen(name, el) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('screen-' + name).classList.add('active');
-    el.classList.add('active');
-  }
-
-  function toggleUserMenu() {
-    document.getElementById('user-menu').classList.toggle('open');
-  }
-
-  document.addEventListener('click', e => {
-    if (!e.target.closest('.header-user')) {
-      document.getElementById('user-menu').classList.remove('open');
-    }
-  });
-
-  let toastTimer;
-  function showToast(msg, type = 'success') {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = `toast ${type} show`;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
-  }
-
-  function setDefaultDates() {
-    const today = new Date().toISOString().slice(0,10);
-    document.getElementById('exp-date').value = today;
-    document.getElementById('sched-date').value = today;
-  }
-
-  function toggleCustomCat() {
-    const sel = document.getElementById('exp-category');
-    const grp = document.getElementById('custom-cat-group');
-    if (grp) grp.style.display = sel.value === 'Other' ? 'block' : 'none';
-  }
-
-  function toggleSetupHint() {
-    const el = document.getElementById('setup-hint');
-    el.style.display = el.style.display === 'none' ? 'block' : 'none';
-  }
-
-  // ---- Theme ----
-  function toggleTheme() {
-    const isCurrentlyLight = document.body.classList.contains('light');
-    if (!isCurrentlyLight) {
-      const overlay = document.getElementById('flashbang-overlay');
-      overlay.style.display = 'flex';
-    } else {
-      document.body.classList.remove('light');
-      document.getElementById('theme-btn').textContent = '🌙 Dark';
-      try { localStorage.setItem('budget-theme', 'dark'); } catch(e) {}
-    }
-  }
-
-  function confirmFlashbang() {
-    closeFlashbang();
-    document.body.classList.add('light');
-    document.getElementById('theme-btn').textContent = '☀️ Light';
-    try { localStorage.setItem('budget-theme', 'light'); } catch(e) {}
-  }
-
-  function closeFlashbang() {
-    document.getElementById('flashbang-overlay').style.display = 'none';
-  }
-
-  function applyStoredTheme() {
-    try {
-      const stored = localStorage.getItem('budget-theme');
-      if (stored === 'light') {
-        document.body.classList.add('light');
-        document.getElementById('theme-btn').textContent = '☀️ Light';
-      }
-    } catch(e) {}
-  }
-
-  // ---- Welcome Splash ----
-  function showWelcomeIfNeeded() {
-    try {
-      if (localStorage.getItem('budget-welcomed') === 'true') return;
-    } catch(e) {}
-    const overlay = document.getElementById('welcome-overlay');
-    if (overlay) overlay.style.display = 'flex';
-  }
-
-  function closeWelcome() {
-    const overlay = document.getElementById('welcome-overlay');
-    if (overlay) overlay.style.display = 'none';
-    try {
-      const dontShow = document.getElementById('dont-show-again');
-      if (dontShow && dontShow.checked) {
-        localStorage.setItem('budget-welcomed', 'true');
-      }
-    } catch(e) {}
-  }
-
-  // ---- Init ----
-  window.onload = () => { applyStoredTheme(); initGoogle(); updateSyncBanner(); document.getElementById('app-version').textContent = APP_VERSION; };
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible') return;
-    const appVisible = document.getElementById('app').style.display !== 'none';
-    if (appVisible && !isTokenValid()) {
-      ensureToken().then(flushQueue).catch(handleSessionExpired);
-    }
-  });
-
-  window.addEventListener('online', () => {
-    if (isTokenValid()) flushQueue();
-  });
-</script>
-
-<!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-
-<!-- Flashbang Warning Lightbox -->
-<!-- Welcome Splash -->
-<div id="welcome-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:10000;align-items:center;justify-content:center;">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 36px;max-width:440px;width:90%;position:relative;">
-    <div style="font-size:52px;text-align:center;margin-bottom:12px;">💰</div>
-    <h2 style="font-size:20px;font-weight:700;margin-bottom:6px;color:var(--text);text-align:center;">Welcome to Budget</h2>
-    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:24px;text-align:center;">Your personal finance tracker. Data lives in your own Google Sheet. Nobody else can see it.</p>
-
-    <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:28px;">
-      <div style="display:flex;align-items:flex-start;gap:14px;">
-        <div style="width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;">1</div>
-        <div>
-          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Go to the Accounts tab</div>
-          <div style="font-size:12px;color:var(--muted);line-height:1.6;">Open your banking app, grab your current balance for each account, and enter it here. This is your starting point.</div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:flex-start;gap:14px;">
-        <div style="width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;">2</div>
-        <div>
-          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Add your recurring bills</div>
-          <div style="font-size:12px;color:var(--muted);line-height:1.6;">Go to the Bills tab and enter anything you pay on a regular schedule. Rent, subscriptions, utilities, phone bill.</div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:flex-start;gap:14px;">
-        <div style="width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;">3</div>
-        <div>
-          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Start logging expenses</div>
-          <div style="font-size:12px;color:var(--muted);line-height:1.6;">Every time you spend money, log it in the Expenses tab. The app deducts it from your balance automatically.</div>
-        </div>
-      </div>
-    </div>
-
-    <div style="background:rgba(79,142,247,0.08);border:1px solid rgba(79,142,247,0.25);border-radius:10px;padding:12px 16px;margin-bottom:24px;font-size:12px;color:var(--muted);line-height:1.6;">
-      <span style="color:var(--accent);font-weight:600;">Pro tip:</span> Run the Balance Transactions check on the Accounts tab weekly to make sure the math is staying clean.
-    </div>
-
-    <button onclick="closeWelcome()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:14px;font-weight:600;cursor:pointer;width:100%;">Let's go 🚀</button>
-    <div style="text-align:center;margin-top:12px;">
-      <label style="font-size:11px;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
-        <input type="checkbox" id="dont-show-again" style="cursor:pointer;" />
-        Don't show this again
-      </label>
-    </div>
-  </div>
-</div>
-
-<div id="flashbang-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center;">
-  <div id="flashbang-box" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 36px;max-width:380px;width:90%;text-align:center;position:relative;">
-    <div style="font-size:64px;margin-bottom:12px;">🕶️</div>
-    <h2 style="font-size:20px;font-weight:700;margin-bottom:10px;color:var(--text);">Prepare to be flashbanged</h2>
-    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:24px;">You are about to switch to Light Mode. Anthropic is not responsible for any temporary blindness, squinting, or existential regret that follows. Sunglasses recommended.</p>
-    <div style="display:flex;gap:10px;justify-content:center;">
-      <button onclick="confirmFlashbang()" style="background:#f7a84f;color:#fff;border:none;border-radius:8px;padding:10px 22px;font-size:13px;font-weight:600;cursor:pointer;">I accept my fate 🫡</button>
-      <button onclick="closeFlashbang()" style="background:var(--surface2);color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:10px 22px;font-size:13px;font-weight:600;cursor:pointer;">Never mind 🐔</button>
-    </div>
-  </div>
-</div>
-<script>
-/*
- * Plaid integration for Budget.
- * Depends on functions/variables from the main script above (appendRow,
- * logTransaction, deductFromBalance, addToBalance, TABS, userData,
- * showToast, renderAll, todayISO), so it must load after it, on the same
- * page. Do not put a literal closing script tag inside a comment anywhere
- * in this file, the HTML parser doesn't understand JS comments and will
- * end the script block early if it sees one.
- */
-
-const PLAID_WORKER_URL = "https://budget-plaid-worker.tcghunters.workers.dev";
-const PLAID_WORKER_KEY = "PCWCG7KYTAOWUQ8Z6XZR2J6N8JV49PAS";
-
-const PLAID_CATEGORY_MAP = {
-  FOOD_AND_DRINK_GROCERIES: "Groceries",
-  FOOD_AND_DRINK_RESTAURANT: "Dining Out",
-  FOOD_AND_DRINK_COFFEE: "Dining Out",
-  FOOD_AND_DRINK_VENDING_MACHINES: "Dining Out",
-  FOOD_AND_DRINK: "Food",
-  TRANSPORTATION_GAS: "Gas",
-  TRANSPORTATION_PARKING: "Auto",
-  TRANSPORTATION_PUBLIC_TRANSIT: "Auto",
-  TRANSPORTATION: "Auto",
-  GENERAL_MERCHANDISE_CLOTHING_AND_ACCESSORIES: "Shopping",
-  GENERAL_MERCHANDISE_ELECTRONICS: "Shopping",
-  GENERAL_MERCHANDISE: "Shopping",
-  ENTERTAINMENT: "Entertainment",
-  MEDICAL: "Health",
-  PERSONAL_CARE: "Personal Care",
-  RENT_AND_UTILITIES_GAS_AND_ELECTRICITY: "Utilities",
-  RENT_AND_UTILITIES_TELEPHONE: "Subscriptions",
-  RENT_AND_UTILITIES_INTERNET_AND_CABLE: "Subscriptions",
-  RENT_AND_UTILITIES: "Utilities",
-  GENERAL_SERVICES_STREAMING_SERVICES: "Subscriptions",
-  GENERAL_SERVICES: "Other",
-  HOME_IMPROVEMENT: "Other",
-  LOAN_PAYMENTS: "Other",
-  BANK_FEES: "Other",
-  GOVERNMENT_AND_NON_PROFIT: "Other",
-  TRAVEL: "Other",
+const ACCOUNT_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c'];
+const PIE_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6'];
+
+let data = {
+  accounts: [],
+  categories: [],
+  recurring: [],
+  transactions: [],
+  debts: []
 };
 
-function mapPlaidCategory(rawCategory) {
-  if (!rawCategory) return "Other";
-  if (PLAID_CATEGORY_MAP[rawCategory]) return PLAID_CATEGORY_MAP[rawCategory];
-  const prefix = Object.keys(PLAID_CATEGORY_MAP).find(
-    (k) => rawCategory.startsWith(k.split("_").slice(0, 2).join("_"))
-  );
-  return prefix ? PLAID_CATEGORY_MAP[prefix] : "Other";
+let ui = {
+  editingRecurring: null,
+  editingDebt: null,
+  editingAccount: null,
+  setupPendingAccounts: [],
+  setupSelectedColor: ACCOUNT_COLORS[0]
+};
+
+function loadSampleData() {
+  data.accounts = [
+    { name: 'PNC checking', balance: 2317.20, color: '#4f8ef7', threshold: 100 },
+    { name: 'Chime checking', balance: 441.85, color: '#38d9a9', threshold: 50 },
+    { name: 'Chime savings', balance: 620.10, color: '#f7a84f', threshold: 0 }
+  ];
+  data.categories = [
+    { name: 'Housing', planned: 1900 },
+    { name: 'Utilities', planned: 250 },
+    { name: 'Subscriptions', planned: 100 },
+    { name: 'Debt', planned: 900 },
+    { name: 'Personal', planned: 200 }
+  ];
+  data.recurring = [
+    { name: 'Rent and sewer/water/trash', amount: 1723, day: 1, account: 'Chime checking', category: 'Housing', freq: 'Monthly' },
+    { name: 'AT&T internet', amount: 81, day: 25, account: 'Chime checking', category: 'Utilities', freq: 'Monthly' },
+    { name: 'AT&T wireless', amount: 381, day: 25, account: 'Chime checking', category: 'Utilities', freq: 'Monthly' },
+    { name: 'Duke Energy', amount: 140, day: 8, account: 'Chime checking', category: 'Utilities', freq: 'Monthly' },
+    { name: 'Spotify', amount: 15.99, day: 2, account: 'Chime checking', category: 'Subscriptions', freq: 'Monthly' },
+    { name: 'Apple One', amount: 22.95, day: 1, account: 'Chime checking', category: 'Subscriptions', freq: 'Monthly' },
+    { name: 'Disney+', amount: 10.99, day: 19, account: 'Chime checking', category: 'Subscriptions', freq: 'Monthly' },
+    { name: 'Everwise CU car payment', amount: 600, day: 15, account: 'Chime checking', category: 'Debt', freq: 'Monthly' },
+    { name: 'Geico car insurance', amount: 108.90, day: 6, account: 'Chime checking', category: 'Personal', freq: 'Monthly' },
+    { name: 'Chewy', amount: 76.96, day: 16, account: 'Chime checking', category: 'Personal', freq: 'Monthly' }
+  ];
+  data.transactions = [
+    { date: daysAgo(2), type: 'expense', desc: 'Kroger', amount: 84.12, account: 'Chime checking', category: 'Personal' },
+    { date: daysAgo(4), type: 'expense', desc: 'Shell gas station', amount: 38.50, account: 'Chime checking', category: '' },
+    { date: daysAgo(10), type: 'deposit', desc: 'Paycheck', amount: 2350.00, account: 'PNC checking', category: '' },
+    { date: daysAgo(33), type: 'expense', desc: 'Spotify', amount: 15.99, account: 'Chime checking', category: 'Subscriptions' },
+    { date: daysAgo(3), type: 'expense', desc: 'Spotify', amount: 15.99, account: 'Chime checking', category: 'Subscriptions' },
+    { date: daysAgo(20), type: 'expense', desc: 'Chewy', amount: 76.96, account: 'Chime checking', category: 'Personal' },
+    { date: daysAgo(50), type: 'expense', desc: 'Chewy', amount: 76.96, account: 'Chime checking', category: 'Personal' }
+  ];
+  data.debts = [
+    { name: 'CreditOne Blue', balance: 295.77, min: 30, limit: 300, day: 2, status: 'unpaid for August' },
+    { name: 'Blaze', balance: 263.62, min: 30, limit: 350, day: 16, status: '' },
+    { name: 'CapOne Quicksilver', balance: 467.62, min: 25, limit: 500, day: 9, status: '' },
+    { name: 'CreditOne Black', balance: 766.00, min: 75, limit: 700, day: 26, status: '' },
+    { name: 'Legacy', balance: 522.46, min: 30, limit: 600, day: 23, status: '' },
+    { name: 'CapOne', balance: 3021.42, min: 110, limit: 3000, day: 8, status: '' }
+  ];
 }
 
-async function plaidWorkerFetch(path, options = {}) {
-  const res = await fetch(`${PLAID_WORKER_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": PLAID_WORKER_KEY,
-      ...(options.headers || {}),
-    },
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Worker request failed: ${res.status}`);
-  return data;
+function daysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
 }
 
-function findPossibleDuplicate(t) {
-  if (!t.budget_account) return null;
-  const amt = Math.abs(Number(t.amount));
-  const tDate = new Date(t.date + "T00:00:00");
-  const withinWindow = (dateStr) => {
-    const d = new Date(dateStr + "T00:00:00");
-    if (isNaN(d.getTime())) return false;
-    const diffDays = Math.abs((d - tDate) / 86400000);
-    return diffDays <= 3;
-  };
-
-  if (t.amount >= 0) {
-    return userData.expenses.find(
-      (e) =>
-        e.account.toLowerCase() === t.budget_account.toLowerCase() &&
-        Math.abs(e.amount - amt) < 0.01 &&
-        withinWindow(e.date)
-    );
-  }
-  return userData.transactions.find(
-    (tx) =>
-      tx.type === "Deposit" &&
-      tx.account.toLowerCase() === t.budget_account.toLowerCase() &&
-      Math.abs(tx.amount - amt) < 0.01 &&
-      withinWindow(tx.date)
-  );
+function fmt(n) {
+  n = Number(n) || 0;
+  const sign = n < 0 ? '-' : '';
+  return sign + '$' + Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-async function applyPlaidTransaction(t, skipDuplicateCheck) {
-  if (!t.budget_account) {
-    showToast("Map this transaction to a Budget account first.", "error");
-    return false;
-  }
+function toast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || '');
+  setTimeout(() => { t.className = 'toast ' + (type || ''); }, 2600);
+}
 
-  if (!skipDuplicateCheck && findPossibleDuplicate(t)) {
-    const proceed = confirm(
-      "This looks like it might already be logged (same account, amount, and roughly the same date). Apply anyway?"
-    );
-    if (!proceed) return false;
-  }
-
-  if (t.amount < 0) {
-    const amt = Math.abs(t.amount);
-    await logTransaction("Deposit", t.merchant, t.budget_account, amt);
-    await addToBalance(t.budget_account, amt);
-    renderAll();
-    await plaidWorkerFetch("/api/plaid/pending/resolve", {
-      method: "POST",
-      body: JSON.stringify({ ids: [t.id] }),
-    });
-    return true;
-  }
-
-  const cat = mapPlaidCategory(t.category);
-  const synced = await appendRow(TABS.expenses, [t.date, t.merchant, cat, t.budget_account, t.amount]);
-  userData.expenses.unshift({ date: t.date, desc: t.merchant, category: cat, account: t.budget_account, amount: t.amount });
-  await logTransaction("Expense", t.merchant, t.budget_account, t.amount);
-  await deductFromBalance(t.budget_account, t.amount);
+/* AUTH */
+function continueWithGoogle() {
+  toast('Google sign-in and Sheet sync arrive in phase 2. Starting fresh setup instead.');
+  data.accounts = [];
+  data.categories = [];
+  data.recurring = [];
+  data.transactions = [];
+  data.debts = [];
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('settings-account-mode').textContent = 'Not connected';
+  document.getElementById('settings-account-sub').textContent = 'Google Sheet sync connects in phase 2. This is a fresh, empty setup.';
   renderAll();
-  await plaidWorkerFetch("/api/plaid/pending/resolve", {
-    method: "POST",
-    body: JSON.stringify({ ids: [t.id] }),
+  openSetupModal();
+}
+
+function continueWithSample() {
+  loadSampleData();
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('settings-account-mode').textContent = 'Sample data mode';
+  document.getElementById('settings-account-sub').textContent = 'You are viewing sample data. Google Sheet sync connects in phase 2.';
+  renderAll();
+}
+
+function signOut() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  toggleUserMenu(true);
+}
+
+function resetAllData() {
+  if (!confirm('Reset all data back to the sample set?')) return;
+  loadSampleData();
+  renderAll();
+  toast('Data reset.');
+  toggleUserMenu(true);
+}
+
+function toggleUserMenu(forceClose) {
+  const m = document.getElementById('user-menu');
+  if (forceClose) { m.classList.remove('open'); return; }
+  m.classList.toggle('open');
+}
+
+/* THEME */
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light');
+  document.getElementById('theme-btn').innerHTML = isLight ? '&#9728; Light' : '&#9790; Dark';
+  drawPieChart(lastPieLabels, lastPieValues, lastPieColors);
+}
+
+/* SETUP MODAL (first login flow, invoked manually here for demo) */
+function openSetupModal() {
+  ui.setupPendingAccounts = [];
+  ui.setupSelectedColor = ACCOUNT_COLORS[0];
+  document.getElementById('setup-step-1').style.display = 'block';
+  document.getElementById('setup-step-2').style.display = 'none';
+  document.getElementById('step-dot-1').classList.add('active');
+  document.getElementById('step-dot-2').classList.remove('active');
+  renderSetupColorRow();
+  renderSetupAccountList();
+  document.getElementById('setup-modal').classList.add('open');
+}
+
+function renderSetupColorRow() {
+  document.getElementById('setup-color-row').innerHTML = ACCOUNT_COLORS.map(c => `
+    <div class="color-swatch ${c === ui.setupSelectedColor ? 'selected' : ''}" style="background:${c};" onclick="pickSetupColor('${c}')"></div>
+  `).join('');
+}
+
+function pickSetupColor(c) {
+  ui.setupSelectedColor = c;
+  renderSetupColorRow();
+}
+
+function addSetupAccount() {
+  const name = document.getElementById('setup-acc-name').value.trim();
+  const balance = parseFloat(document.getElementById('setup-acc-balance').value) || 0;
+  if (!name) { toast('Enter an account name first.', 'error'); return; }
+  ui.setupPendingAccounts.push({ name, balance, color: ui.setupSelectedColor, threshold: 0 });
+  document.getElementById('setup-acc-name').value = '';
+  document.getElementById('setup-acc-balance').value = '';
+  renderSetupAccountList();
+}
+
+function renderSetupAccountList() {
+  document.getElementById('setup-account-list').innerHTML = ui.setupPendingAccounts.map((a, i) => `
+    <div class="setup-account-row">
+      <span class="color-swatch" style="width:14px;height:14px;background:${a.color};"></span>
+      <span style="flex:1;">${a.name}</span>
+      <span class="mono">${fmt(a.balance)}</span>
+      <button class="chip-btn" onclick="removeSetupAccount(${i})">&times;</button>
+    </div>
+  `).join('');
+}
+
+function removeSetupAccount(i) {
+  ui.setupPendingAccounts.splice(i, 1);
+  renderSetupAccountList();
+}
+
+function setupGoToStep2() {
+  if (!ui.setupPendingAccounts.length) { toast('Add at least one account first.', 'error'); return; }
+  document.getElementById('setup-step-1').style.display = 'none';
+  document.getElementById('setup-step-2').style.display = 'block';
+  document.getElementById('step-dot-1').classList.remove('active');
+  document.getElementById('step-dot-2').classList.add('active');
+}
+
+function finishSetup() {
+  data.accounts = ui.setupPendingAccounts.slice();
+  document.getElementById('setup-modal').classList.remove('open');
+  renderAll();
+  toast('You are all set up.', 'success');
+}
+
+/* NAV */
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.screen === name));
+  toggleUserMenu(true);
+}
+
+/* RENDER ALL */
+function renderAll() {
+  populateAccountSelects();
+  populateCategorySelects();
+  renderBudget();
+  renderRecurring();
+  renderRegister();
+  renderDebts();
+  renderSettings();
+}
+
+function populateAccountSelects() {
+  const opts = data.accounts.map(a => `<option>${a.name}</option>`).join('');
+  ['rec-account', 'txn-account', 'txn-to-account'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opts || '<option value="">No accounts yet</option>';
   });
-  return synced;
+  document.getElementById('txn-type').onchange = function() {
+    const isTransfer = this.value === 'transfer';
+    document.getElementById('txn-to-account-group').style.display = isTransfer ? 'flex' : 'none';
+    document.getElementById('txn-category-group').style.display = isTransfer ? 'none' : 'flex';
+  };
 }
 
-async function rejectPlaidTransaction(t) {
-  await plaidWorkerFetch("/api/plaid/pending/resolve", {
-    method: "POST",
-    body: JSON.stringify({ ids: [t.id] }),
+function populateCategorySelects() {
+  const opts = '<option value="">Uncategorized</option>' + data.categories.map(c => `<option>${c.name}</option>`).join('');
+  ['rec-category', 'txn-category'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opts;
   });
 }
 
-async function connectBankAccount() {
-  const { link_token } = await plaidWorkerFetch("/api/plaid/link-token", { method: "POST" });
+/* BUDGET */
+function normalizedMonthly(item) {
+  if (item.freq === 'Weekly') return item.amount * 4.33;
+  if (item.freq === 'Biweekly') return item.amount * 2.17;
+  if (item.freq === 'Annual') return item.amount / 12;
+  return item.amount;
+}
 
-  const handler = Plaid.create({
-    token: link_token,
-    onSuccess: async (public_token, metadata) => {
-      const nickname = metadata.institution ? metadata.institution.name : "Linked account";
-      const { item_id, accounts } = await plaidWorkerFetch("/api/plaid/exchange", {
-        method: "POST",
-        body: JSON.stringify({ public_token, nickname }),
-      });
-      showToast(`${nickname} connected. Map each account below, then it'll start syncing.`, "success");
-      renderAccountMapping(item_id, nickname, accounts);
-      showPlaidPanel();
-    },
-    onExit: (err) => { if (err) console.error("Plaid Link exited:", err); },
+function monthIncome() {
+  const now = new Date();
+  return data.transactions
+    .filter(t => t.type === 'deposit' && new Date(t.date).getMonth() === now.getMonth() && new Date(t.date).getFullYear() === now.getFullYear())
+    .reduce((s, t) => s + t.amount, 0);
+}
+
+function monthChargesTotal() {
+  return data.recurring.reduce((s, r) => s + normalizedMonthly(r), 0);
+}
+
+function spendingByCategory() {
+  const spend = {};
+  data.recurring.forEach(r => {
+    const cat = r.category || 'Uncategorized';
+    spend[cat] = (spend[cat] || 0) + normalizedMonthly(r);
   });
-
-  handler.open();
+  const now = new Date();
+  data.transactions.filter(t => t.type === 'expense' && new Date(t.date).getMonth() === now.getMonth() && new Date(t.date).getFullYear() === now.getFullYear())
+    .forEach(t => {
+      const cat = t.category || 'Uncategorized';
+      spend[cat] = (spend[cat] || 0) + t.amount;
+    });
+  return spend;
 }
 
-async function mapPlaidAccount(itemId, accountId, budgetAccount) {
-  await plaidWorkerFetch(`/api/plaid/items/${itemId}/map`, {
-    method: "POST",
-    body: JSON.stringify({ account_id: accountId, budget_account: budgetAccount }),
-  });
-  showToast("Account mapped.", "success");
-}
+let lastPieLabels = [], lastPieValues = [], lastPieColors = [];
 
-async function syncPlaidNow() {
-  const { results } = await plaidWorkerFetch("/api/plaid/sync", { method: "POST" });
-  const total = results.reduce((sum, r) => sum + (r.queued || 0), 0);
-  showToast(total ? `${total} new transaction(s) synced.` : "No new transactions.", "success");
-  await loadPendingIntoPanel();
-}
+function renderBudget() {
+  const income = monthIncome();
+  const charges = monthChargesTotal();
+  const surplus = income - charges;
+  document.getElementById('budget-income').textContent = fmt(income);
+  document.getElementById('budget-charges').textContent = fmt(charges);
+  const surplusEl = document.getElementById('budget-surplus');
+  surplusEl.textContent = fmt(surplus);
+  surplusEl.className = 'card-value ' + (surplus >= 0 ? 'green' : 'red');
 
-async function loadPendingIntoPanel() {
-  const { pending, mode } = await plaidWorkerFetch("/api/plaid/pending");
-  const modeRadio = document.querySelector(`input[name="plaid-mode"][value="${mode}"]`);
-  if (modeRadio) modeRadio.checked = true;
+  const spend = spendingByCategory();
+  const labels = Object.keys(spend);
+  const values = labels.map(l => spend[l]);
+  const colors = labels.map((l, i) => l === 'Uncategorized' ? '#7a84a0' : PIE_COLORS[i % PIE_COLORS.length]);
+  drawPieChart(labels, values, colors);
 
-  if (mode === "auto") {
-    const ready = pending.filter((t) => t.budget_account && !findPossibleDuplicate(t));
-    for (const t of ready) {
-      await applyPlaidTransaction(t, true);
-    }
+  const list = document.getElementById('category-progress-list');
+  if (!data.categories.length) {
+    list.innerHTML = '<div class="empty-state">No categories yet. Add one above.</div>';
+  } else {
+    list.innerHTML = data.categories.map((c, i) => {
+      const spent = spend[c.name] || 0;
+      const pct = c.planned > 0 ? Math.min(100, (spent / c.planned) * 100) : 0;
+      const over = c.planned > 0 && spent > c.planned;
+      return `
+        <div class="category-row">
+          <div class="category-row-top">
+            <span class="name"><span class="dot" style="background:${PIE_COLORS[i % PIE_COLORS.length]};"></span>${c.name}</span>
+            <span style="color:var(--muted);">${fmt(spent)} of ${fmt(c.planned)} <button class="chip-btn" onclick="removeCategory(${i})">&times;</button></span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width:${pct}%;background:${over ? 'var(--danger)' : 'var(--accent)'};"></div></div>
+        </div>
+      `;
+    }).join('');
   }
 
-  const { pending: stillPending } = await plaidWorkerFetch("/api/plaid/pending");
-  renderPendingList(stillPending);
-}
-
-async function setPlaidMode(mode) {
-  await plaidWorkerFetch("/api/plaid/mode", { method: "POST", body: JSON.stringify({ mode }) });
-  showToast(`Plaid mode set to ${mode}.`, "success");
-  await loadPendingIntoPanel();
-}
-
-function ensurePlaidPanel() {
-  if (document.getElementById("plaid-panel")) return;
-
-  const btn = document.createElement("button");
-  btn.textContent = "🏦 Bank Sync";
-  btn.style.cssText =
-    "position:fixed;top:114px;right:24px;z-index:9998;background:var(--accent);color:#fff;border:none;border-radius:20px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.25);";
-  btn.onclick = showPlaidPanel;
-  document.body.appendChild(btn);
-
-  const panel = document.createElement("div");
-  panel.id = "plaid-panel";
-  panel.style.cssText =
-    "display:none;position:fixed;top:158px;right:24px;width:360px;max-height:70vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;z-index:9998;box-shadow:0 8px 24px rgba(0,0,0,0.3);";
-  panel.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <strong style="font-size:14px;">Bank Sync</strong>
-      <span onclick="document.getElementById('plaid-panel').style.display='none'" style="cursor:pointer;color:var(--muted);">✕</span>
+  const upcoming = data.recurring.slice().sort((a, b) => a.day - b.day).slice(0, 6);
+  const upcomingBody = document.getElementById('upcoming-list-body');
+  upcomingBody.innerHTML = upcoming.length ? upcoming.map(r => `
+    <div class="list-row">
+      <div class="list-row-left">
+        <div class="list-row-name">${r.name}</div>
+        <div class="list-row-date">Due on the ${r.day}${daySuffix(r.day)}</div>
+      </div>
+      <div class="list-row-amount">${fmt(r.amount)}</div>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;">
-      <button onclick="connectBankAccount()" style="flex:1;background:var(--accent2);color:#fff;border:none;border-radius:8px;padding:8px;font-size:12px;font-weight:600;cursor:pointer;">Connect account</button>
-      <button onclick="syncPlaidNow()" style="flex:1;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:12px;font-weight:600;cursor:pointer;">Sync now</button>
-    </div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">New transaction handling:</div>
-    <div style="display:flex;gap:14px;margin-bottom:14px;font-size:12px;">
-      <label style="cursor:pointer;"><input type="radio" name="plaid-mode" value="review" onchange="setPlaidMode('review')"> Review queue</label>
-      <label style="cursor:pointer;"><input type="radio" name="plaid-mode" value="auto" onchange="setPlaidMode('auto')"> Auto-apply</label>
-    </div>
-    <div id="plaid-mapping"></div>
-    <div id="plaid-connected-list"></div>
-    <div id="plaid-pending-list"></div>
-  `;
-  document.body.appendChild(panel);
+  `).join('') : '<div class="empty-state">No recurring charges yet.</div>';
 }
 
-function showPlaidPanel() {
-  ensurePlaidPanel();
-  document.getElementById("plaid-panel").style.display = "block";
-  loadPendingIntoPanel();
-  renderConnectedItems();
+function daySuffix(d) {
+  if (d >= 11 && d <= 13) return 'th';
+  switch (d % 10) { case 1: return 'st'; case 2: return 'nd'; case 3: return 'rd'; default: return 'th'; }
 }
 
-async function renderConnectedItems() {
-  const el = document.getElementById("plaid-connected-list");
-  if (!el) return;
-  const { items } = await plaidWorkerFetch("/api/plaid/items");
-  if (!items.length) {
-    el.innerHTML = "";
+function drawPieChart(labels, values, colors) {
+  lastPieLabels = labels; lastPieValues = values; lastPieColors = colors;
+  const canvas = document.getElementById('budget-pie');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  const total = values.reduce((s, v) => s + v, 0);
+  const legendEl = document.getElementById('budget-legend');
+
+  if (!total) {
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--border') || '#2a2f42';
+    ctx.beginPath();
+    ctx.arc(W/2, H/2, W/2 - 10, 0, Math.PI * 2);
+    ctx.fill();
+    legendEl.innerHTML = '<div class="empty-state" style="padding:8px 0;">No spending yet.</div>';
     return;
   }
-  el.innerHTML =
-    '<div style="font-size:12px;color:var(--muted);margin:10px 0 6px;">Connected:</div>' +
-    items
-      .map(
-        (it) => `
-      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:6px;">
-        <span>${it.nickname}</span>
-        <button onclick="disconnectPlaidItem('${it.item_id}')" style="background:none;border:1px solid var(--border);color:var(--danger);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">Disconnect</button>
-      </div>`
-      )
-      .join("");
+
+  let startAngle = -Math.PI / 2;
+  const legend = [];
+  values.forEach((val, i) => {
+    const slice = (val / total) * Math.PI * 2;
+    const color = colors[i];
+    ctx.beginPath();
+    ctx.moveTo(W/2, H/2);
+    ctx.arc(W/2, H/2, W/2 - 10, startAngle, startAngle + slice);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    legend.push({ label: labels[i], color, pct: Math.round((val / total) * 100), amount: val });
+    startAngle += slice;
+  });
+
+  ctx.beginPath();
+  ctx.arc(W/2, H/2, W/4, 0, Math.PI * 2);
+  const bg = document.body.classList.contains('light') ? '#f4f6fb' : '#181c27';
+  ctx.fillStyle = bg;
+  ctx.fill();
+  ctx.fillStyle = document.body.classList.contains('light') ? '#1a2035' : '#e4e8f0';
+  ctx.font = 'bold 14px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(fmt(total), W/2, H/2 + 5);
+  ctx.font = '10px Inter, sans-serif';
+  ctx.fillStyle = '#7a84a0';
+  ctx.fillText('this month', W/2, H/2 + 18);
+
+  legend.sort((a, b) => b.amount - a.amount);
+  legendEl.innerHTML = legend.map(l => `
+    <div style="display:flex;align-items:center;gap:8px;font-size:13px;">
+      <span style="width:10px;height:10px;border-radius:2px;background:${l.color};flex-shrink:0;display:inline-block;"></span>
+      <span style="color:var(--text);">${l.label}</span>
+      <span style="color:var(--muted);margin-left:auto;">${fmt(l.amount)} &middot; ${l.pct}%</span>
+    </div>
+  `).join('');
 }
 
-async function disconnectPlaidItem(itemId) {
-  if (!confirm("Disconnect this account? It will stop syncing new transactions.")) return;
-  await plaidWorkerFetch(`/api/plaid/items/${itemId}`, { method: "DELETE" });
-  showToast("Account disconnected.", "success");
-  renderConnectedItems();
+function addCategory() {
+  const name = document.getElementById('cat-name').value.trim();
+  const planned = parseFloat(document.getElementById('cat-amount').value) || 0;
+  if (!name) { toast('Enter a category name first.', 'error'); return; }
+  data.categories.push({ name, planned });
+  document.getElementById('cat-name').value = '';
+  document.getElementById('cat-amount').value = '';
+  populateCategorySelects();
+  renderBudget();
+  toast('Category added.', 'success');
 }
 
-function renderAccountMapping(itemId, nickname, accounts) {
-  const el = document.getElementById("plaid-mapping");
-  if (!el) return;
-  const budgetAccounts = userData.balances.map((b) => b.account);
-  el.innerHTML =
-    `<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Map ${nickname} accounts:</div>` +
-    accounts
-      .map(
-        (a) => `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px;">
-        <span>${a.name}${a.mask ? " •••" + a.mask : ""}</span>
-        <select onchange="mapPlaidAccount('${itemId}','${a.account_id}', this.value)" style="font-size:12px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px;">
-          <option value="">Choose account</option>
-          ${budgetAccounts.map((ba) => `<option value="${ba}">${ba}</option>`).join("")}
-        </select>
-      </div>`
-      )
-      .join("");
+function removeCategory(i) {
+  data.categories.splice(i, 1);
+  populateCategorySelects();
+  renderBudget();
 }
 
-function renderPendingList(pending) {
-  const el = document.getElementById("plaid-pending-list");
-  if (!el) return;
-  if (!pending.length) {
-    el.innerHTML = '<div style="font-size:12px;color:var(--muted);">Nothing waiting.</div>';
+/* RECURRING CHARGES */
+function saveRecurring() {
+  const item = {
+    name: document.getElementById('rec-name').value.trim(),
+    amount: parseFloat(document.getElementById('rec-amount').value) || 0,
+    day: parseInt(document.getElementById('rec-day').value) || 1,
+    account: document.getElementById('rec-account').value,
+    category: document.getElementById('rec-category').value,
+    freq: document.getElementById('rec-freq').value
+  };
+  if (!item.name) { toast('Enter a name first.', 'error'); return; }
+  if (ui.editingRecurring !== null) {
+    data.recurring[ui.editingRecurring] = item;
+    ui.editingRecurring = null;
+    document.getElementById('rec-cancel-btn').style.display = 'none';
+    document.getElementById('recurring-form-title').textContent = 'Add a recurring charge';
+  } else {
+    data.recurring.push(item);
+  }
+  ['rec-name','rec-amount','rec-day'].forEach(id => document.getElementById(id).value = '');
+  renderRecurring();
+  renderBudget();
+  toast('Saved.', 'success');
+}
+
+function editRecurring(i) {
+  const r = data.recurring[i];
+  document.getElementById('rec-name').value = r.name;
+  document.getElementById('rec-amount').value = r.amount;
+  document.getElementById('rec-day').value = r.day;
+  document.getElementById('rec-account').value = r.account;
+  document.getElementById('rec-category').value = r.category || '';
+  document.getElementById('rec-freq').value = r.freq;
+  ui.editingRecurring = i;
+  document.getElementById('rec-cancel-btn').style.display = 'inline-flex';
+  document.getElementById('recurring-form-title').textContent = 'Edit recurring charge';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cancelEditRecurring() {
+  ui.editingRecurring = null;
+  ['rec-name','rec-amount','rec-day'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('rec-cancel-btn').style.display = 'none';
+  document.getElementById('recurring-form-title').textContent = 'Add a recurring charge';
+}
+
+function deleteRecurring(i) {
+  if (!confirm('Delete this recurring charge?')) return;
+  data.recurring.splice(i, 1);
+  renderRecurring();
+  renderBudget();
+}
+
+function renderRecurring() {
+  const tbody = document.getElementById('recurring-tbody');
+  if (!data.recurring.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">No recurring charges yet.</div></td></tr>';
     return;
   }
-  el.innerHTML =
-    '<div style="font-size:12px;color:var(--muted);margin:10px 0 6px;">Pending:</div>' +
-    pending
-      .map((t) => {
-        const isDeposit = t.amount < 0;
-        const displayAmt = Math.abs(Number(t.amount)).toFixed(2);
-        const dupe = findPossibleDuplicate(t);
-        return `
-      <div style="border:1px solid ${dupe ? 'var(--warn)' : 'var(--border)'};border-radius:8px;padding:8px;margin-bottom:6px;font-size:12px;">
-        <div style="display:flex;justify-content:space-between;">
-          <span>${t.merchant} <span class="badge ${isDeposit ? 'paid' : 'upcoming'}" style="margin-left:4px;">${isDeposit ? 'Deposit' : 'Expense'}</span></span>
-          <span class="mono" style="color:${isDeposit ? 'var(--accent2)' : 'var(--danger)'};">${isDeposit ? '+' : '-'}$${displayAmt}</span>
-        </div>
-        <div style="color:var(--muted);margin:2px 0 6px;">${t.date} · ${t.account_label}${t.budget_account ? " → " + t.budget_account : " (unmapped)"}</div>
-        ${dupe ? '<div style="color:var(--warn);font-size:11px;margin-bottom:6px;">⚠ Possible duplicate of an existing entry</div>' : ''}
-        <div style="display:flex;gap:6px;">
-          <button onclick='applyPlaidTransaction(${JSON.stringify(t)}).then(() => loadPendingIntoPanel())' style="flex:1;background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px;cursor:pointer;">Approve</button>
-          <button onclick='rejectPlaidTransaction(${JSON.stringify(t)}).then(() => loadPendingIntoPanel())' style="flex:1;background:var(--surface2);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px;cursor:pointer;">Reject</button>
-        </div>
-      </div>`;
-      })
-      .join("");
+  tbody.innerHTML = data.recurring.map((r, i) => `
+    <tr>
+      <td>${r.name}</td>
+      <td class="mono">${fmt(r.amount)}</td>
+      <td>${r.day}${daySuffix(r.day)}</td>
+      <td>${r.account || '--'}</td>
+      <td>${r.category || '<span style="color:var(--muted);">Uncategorized</span>'}</td>
+      <td>${r.freq}</td>
+      <td><span class="badge upcoming">Due</span></td>
+      <td>
+        <button class="chip-btn" onclick="editRecurring(${i})">Edit</button>
+        <button class="chip-btn" onclick="deleteRecurring(${i})">Delete</button>
+      </td>
+    </tr>
+  `).join('');
 }
 
-function initPlaidUI() {
-  ensurePlaidPanel();
+/* REGISTER */
+function renderAccountChips() {
+  const el = document.getElementById('account-chips');
+  el.innerHTML = data.accounts.length ? data.accounts.map(a => `
+    <div class="account-chip">
+      <span class="dot" style="background:${a.color};"></span>
+      <div>
+        <div class="name">${a.name}</div>
+        <div class="bal">${fmt(a.balance)}</div>
+      </div>
+    </div>
+  `).join('') : '<div class="empty-state">Add an account in Settings to get started.</div>';
 }
+
+function addTransaction() {
+  const type = document.getElementById('txn-type').value;
+  const date = document.getElementById('txn-date').value || new Date().toISOString().slice(0,10);
+  const desc = document.getElementById('txn-desc').value.trim();
+  const amount = parseFloat(document.getElementById('txn-amount').value) || 0;
+  const account = document.getElementById('txn-account').value;
+  const category = document.getElementById('txn-category').value;
+
+  if (!desc || !amount) { toast('Enter a description and amount.', 'error'); return; }
+
+  if (type === 'transfer') {
+    const toAccount = document.getElementById('txn-to-account').value;
+    data.transactions.push({ date, type: 'transfer', desc: desc + ' (to ' + toAccount + ')', amount, account, category: '' });
+    adjustBalance(account, -amount);
+    adjustBalance(toAccount, amount);
+  } else {
+    data.transactions.push({ date, type, desc, amount, account, category });
+    adjustBalance(account, type === 'deposit' ? amount : -amount);
+  }
+
+  document.getElementById('txn-desc').value = '';
+  document.getElementById('txn-amount').value = '';
+  renderRegister();
+  renderBudget();
+  renderSettings();
+  toast('Transaction added.', 'success');
+}
+
+function adjustBalance(accountName, delta) {
+  const a = data.accounts.find(a => a.name === accountName);
+  if (a) a.balance += delta;
+}
+
+function findRecurringMatches() {
+  const counts = {};
+  data.transactions.filter(t => t.type === 'expense').forEach(t => {
+    counts[t.desc] = (counts[t.desc] || 0) + 1;
+  });
+  return counts;
+}
+
+function renderRegister() {
+  renderAccountChips();
+  const tbody = document.getElementById('register-tbody');
+  if (!data.transactions.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">No transactions yet.</div></td></tr>';
+    return;
+  }
+  const counts = findRecurringMatches();
+  const alreadyRecurring = new Set(data.recurring.map(r => r.name.toLowerCase()));
+  const sorted = data.transactions.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  tbody.innerHTML = sorted.map(t => {
+    const idx = data.transactions.indexOf(t);
+    const looksRecurring = t.type === 'expense' && counts[t.desc] >= 2 && !alreadyRecurring.has(t.desc.toLowerCase());
+    const amountClass = t.type === 'deposit' ? 'green' : (t.type === 'expense' ? 'red' : '');
+    const sign = t.type === 'deposit' ? '+' : (t.type === 'expense' ? '-' : '');
+    return `
+      <tr>
+        <td>${t.date}</td>
+        <td>${t.desc} ${looksRecurring ? '<span class="badge recurring">Looks recurring</span>' : ''}</td>
+        <td style="text-transform:capitalize;">${t.type}</td>
+        <td>${t.account}</td>
+        <td>${t.category || '<span style="color:var(--muted);">--</span>'}</td>
+        <td class="mono list-row-amount ${amountClass}">${sign}${fmt(t.amount)}</td>
+        <td>${looksRecurring ? `<button class="chip-btn" onclick="convertToRecurring(${idx})">Add as charge</button>` : ''}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function convertToRecurring(idx) {
+  const t = data.transactions[idx];
+  showScreen('recurring');
+  document.getElementById('rec-name').value = t.desc;
+  document.getElementById('rec-amount').value = t.amount;
+  document.getElementById('rec-day').value = new Date(t.date).getDate();
+  document.getElementById('rec-account').value = t.account;
+  document.getElementById('rec-category').value = t.category || '';
+  toast('Review the details, then save the charge.');
+}
+
+/* DEBTS */
+function saveDebt() {
+  const item = {
+    name: document.getElementById('debt-name').value.trim(),
+    balance: parseFloat(document.getElementById('debt-balance').value) || 0,
+    min: parseFloat(document.getElementById('debt-min').value) || 0,
+    limit: parseFloat(document.getElementById('debt-limit').value) || 0,
+    day: parseInt(document.getElementById('debt-day').value) || 1,
+    status: document.getElementById('debt-status').value.trim()
+  };
+  if (!item.name) { toast('Enter a name first.', 'error'); return; }
+  if (ui.editingDebt !== null) {
+    data.debts[ui.editingDebt] = item;
+    ui.editingDebt = null;
+    document.getElementById('debt-cancel-btn').style.display = 'none';
+    document.getElementById('debt-form-title').textContent = 'Add a debt';
+  } else {
+    data.debts.push(item);
+  }
+  ['debt-name','debt-balance','debt-min','debt-limit','debt-day','debt-status'].forEach(id => document.getElementById(id).value = '');
+  renderDebts();
+  toast('Saved.', 'success');
+}
+
+function editDebt(i) {
+  const d = data.debts[i];
+  document.getElementById('debt-name').value = d.name;
+  document.getElementById('debt-balance').value = d.balance;
+  document.getElementById('debt-min').value = d.min;
+  document.getElementById('debt-limit').value = d.limit;
+  document.getElementById('debt-day').value = d.day;
+  document.getElementById('debt-status').value = d.status;
+  ui.editingDebt = i;
+  document.getElementById('debt-cancel-btn').style.display = 'inline-flex';
+  document.getElementById('debt-form-title').textContent = 'Edit debt';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cancelEditDebt() {
+  ui.editingDebt = null;
+  ['debt-name','debt-balance','debt-min','debt-limit','debt-day','debt-status'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('debt-cancel-btn').style.display = 'none';
+  document.getElementById('debt-form-title').textContent = 'Add a debt';
+}
+
+function deleteDebt(i) {
+  if (!confirm('Delete this debt?')) return;
+  data.debts.splice(i, 1);
+  renderDebts();
+}
+
+function renderDebts() {
+  const tbody = document.getElementById('debts-tbody');
+  if (!data.debts.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">No debts added yet.</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.debts.map((d, i) => {
+    const usedPct = d.limit > 0 ? Math.min(100, Math.round((d.balance / d.limit) * 100)) : null;
+    return `
+      <tr>
+        <td>${d.name}</td>
+        <td class="mono">${fmt(d.balance)}</td>
+        <td class="mono">${fmt(d.min)}</td>
+        <td class="mono">${d.limit > 0 ? fmt(d.limit) : '--'}</td>
+        <td>${usedPct !== null ? usedPct + '%' : '--'}</td>
+        <td>${d.day}${daySuffix(d.day)}</td>
+        <td>${d.status || '--'}</td>
+        <td>
+          <button class="chip-btn" onclick="editDebt(${i})">Edit</button>
+          <button class="chip-btn" onclick="deleteDebt(${i})">Delete</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+/* SETTINGS (accounts) */
+function renderAccColorRow() {
+  document.getElementById('acc-color-row').innerHTML = ACCOUNT_COLORS.map(c => `
+    <div class="color-swatch ${c === ui.settingsSelectedColor ? 'selected' : ''}" style="background:${c};" onclick="pickAccColor('${c}')"></div>
+  `).join('');
+}
+
+function pickAccColor(c) {
+  ui.settingsSelectedColor = c;
+  renderAccColorRow();
+}
+
+function saveAccount() {
+  const item = {
+    name: document.getElementById('acc-name').value.trim(),
+    balance: parseFloat(document.getElementById('acc-balance').value) || 0,
+    threshold: parseFloat(document.getElementById('acc-threshold').value) || 0,
+    color: ui.settingsSelectedColor || ACCOUNT_COLORS[0]
+  };
+  if (!item.name) { toast('Enter an account name first.', 'error'); return; }
+  if (ui.editingAccount !== null) {
+    data.accounts[ui.editingAccount] = item;
+    ui.editingAccount = null;
+    document.getElementById('acc-cancel-btn').style.display = 'none';
+    document.getElementById('acc-submit-btn').textContent = 'Add account';
+  } else {
+    data.accounts.push(item);
+  }
+  ['acc-name','acc-balance','acc-threshold'].forEach(id => document.getElementById(id).value = '');
+  renderAll();
+  toast('Saved.', 'success');
+}
+
+function editAccount(i) {
+  const a = data.accounts[i];
+  document.getElementById('acc-name').value = a.name;
+  document.getElementById('acc-balance').value = a.balance;
+  document.getElementById('acc-threshold').value = a.threshold;
+  ui.settingsSelectedColor = a.color;
+  renderAccColorRow();
+  ui.editingAccount = i;
+  document.getElementById('acc-cancel-btn').style.display = 'inline-flex';
+  document.getElementById('acc-submit-btn').textContent = 'Save changes';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cancelEditAccount() {
+  ui.editingAccount = null;
+  ['acc-name','acc-balance','acc-threshold'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('acc-cancel-btn').style.display = 'none';
+  document.getElementById('acc-submit-btn').textContent = 'Add account';
+}
+
+function deleteAccount(i) {
+  if (!confirm('Delete this account?')) return;
+  data.accounts.splice(i, 1);
+  renderAll();
+}
+
+function renderSettings() {
+  renderAccColorRow();
+  const tbody = document.getElementById('settings-accounts-tbody');
+  if (!data.accounts.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">No accounts yet.</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.accounts.map((a, i) => `
+    <tr>
+      <td>${a.name}</td>
+      <td><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${a.color};"></span></td>
+      <td class="mono">${fmt(a.balance)}</td>
+      <td class="mono">${a.threshold ? fmt(a.threshold) : '--'}</td>
+      <td>
+        <button class="chip-btn" onclick="editAccount(${i})">Edit</button>
+        <button class="chip-btn" onclick="deleteAccount(${i})">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+/* CLOSE MENUS ON OUTSIDE CLICK */
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.header-user')) toggleUserMenu(true);
+});
+
+document.getElementById('txn-date').value = new Date().toISOString().slice(0,10);
+ui.settingsSelectedColor = ACCOUNT_COLORS[0];
 </script>
 </body>
 </html>
