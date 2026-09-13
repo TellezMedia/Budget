@@ -1,5 +1,55 @@
 # Budget app, release notes
 
+## v3.2.0-beta, account balances on Budget, Google Sheets sync
+
+**Account balances on the Budget screen.** A new top row shows each account as a color
+coded chip, same style as the Register chips, with a combined total balance shown
+underneath. This is read only here, editing still happens in Settings or by logging a
+transaction in Register.
+
+**Google Sheets sync.** "Continue with Google" now does a real sign-in and connects to
+your existing "Budget App Data" Sheet from v2.5.2, reusing the same Client ID. Your old
+tabs (Expenses, Bills, Scheduled, Balances, Transactions) are never read or written to.
+Six new tabs hold this app's data: Accounts, Categories, Recurring, Register, Debts,
+DirectDeposits. As agreed, nothing from the old tabs is migrated automatically, a fresh
+Google sign-in starts empty and opens the setup modal, same as before, except now what
+you add actually persists.
+
+Every add, edit, and delete across Budget, Recurring Charges, Register, Debts, and
+Settings writes through to the matching tab. Failed writes (offline, expired session)
+queue locally and retry automatically the next time the app successfully talks to your
+Sheet. Editing an account's balance from a Register transaction updates that account's
+row in the Accounts tab too, so balances stay consistent everywhere.
+
+"Try it with sample data" is unchanged, still a local demo that never touches your
+Sheet.
+
+"Reset all data" now branches by mode. In sample mode it resets to the sample set like
+before. In Google mode, it's a real destructive action against your actual Sheet, so it
+requires typing RESET before it clears the six new tabs. Your old v2.5.2 tabs are never
+touched by this either.
+
+A new "Open my Sheet" item in the header menu opens your connected Sheet directly, only
+visible once you're signed in with Google.
+
+### Known gaps
+
+Color conflict checking (two accounts sharing a color) from v2.5.2 wasn't carried over
+yet. Token refresh and offline retry logic is ported from v2.5.2 but hasn't been tested
+against a real expired session in this rebuild, worth verifying once you're using it
+for real. No calendar view, as noted in the previous release.
+
+### Suggested commit messages
+
+`Redesign app shell as v3.0.0-beta: budget-first nav, recurring detection in
+register, debts tracking, first-login setup modal (sample data, no backend yet)`
+
+`Add direct deposit section to settings as v3.1.0-beta: recurring payroll now drives
+the budget income calculation instead of manual deposits`
+
+`Add account balances to budget home and reconnect Google Sheets sync as v3.2.0-beta:
+reuses the v2.5.2 sheet and client ID with six new tabs for the redesigned data model`
+
 ## v3.1.0-beta, direct deposit
 
 Added a Direct deposit section to Settings, under Accounts. This is where regular
@@ -79,10 +129,7 @@ Reconnect the Plaid Worker for PNC and Chime, using the same recurring detection
 that manual entries use in Register. Decide whether the day by day cash flow calendar
 comes back as a secondary Budget view.
 
-### Suggested commit messages
+### Suggested commit message
 
 `Redesign app shell as v3.0.0-beta: budget-first nav, recurring detection in
 register, debts tracking, first-login setup modal (sample data, no backend yet)`
-
-`Add direct deposit section to settings as v3.1.0-beta: recurring payroll now drives
-the budget income calculation instead of manual deposits`

@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Budget</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -234,12 +235,13 @@ select option { background: var(--surface2); }
 <!-- APP -->
 <div id="app">
   <header>
-    <div class="header-brand">Budget <span style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v3.1.0-beta</span></div>
+    <div class="header-brand">Budget <span style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v3.2.0-beta</span></div>
     <div style="display:flex;align-items:center;margin-left:auto;">
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">&#9790; Dark</button>
       <div class="header-user" onclick="toggleUserMenu()">
         <div class="avatar" id="user-avatar">T</div>
         <div class="user-menu" id="user-menu">
+          <div class="user-menu-item" id="menu-open-sheet" onclick="openSheetUrl()" style="display:none;">Open my Sheet</div>
           <div class="user-menu-item" onclick="showScreen('settings')">Settings</div>
           <div class="user-menu-item danger" onclick="resetAllData()">Reset all data</div>
           <div class="user-menu-item danger" onclick="signOut()">Sign out</div>
@@ -260,6 +262,9 @@ select option { background: var(--surface2); }
 
     <!-- BUDGET (HOME) -->
     <div id="screen-budget" class="screen active">
+      <div class="account-chips" id="budget-account-chips"></div>
+      <div style="font-size:12px;color:var(--muted);margin:-14px 0 20px;" id="budget-total-balance"></div>
+
       <div class="cards-row">
         <div class="card">
           <div class="card-label">Income this month</div>
@@ -557,6 +562,53 @@ select option { background: var(--surface2); }
 const ACCOUNT_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c'];
 const PIE_COLORS = ['#4f8ef7','#38d9a9','#f7a84f','#f76f6f','#a78bfa','#34d399','#fbbf24','#f472b6'];
 
+/* ============================================================
+   GOOGLE SHEETS SYNC
+   Reuses the same Client ID and Sheet as v2.5.2. The five old
+   tabs (Expenses, Bills, Scheduled, Balances, Transactions) are
+   never read from or written to. Six new tabs hold this app's
+   data model instead.
+   ============================================================ */
+const CLIENT_ID = '803010094338-5deiv8s131d8m5qjr12pqt6kcod01msp.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile';
+const SHEET_TITLE = 'Budget App Data';
+
+const TABS2 = {
+  accounts: 'Accounts',
+  categories: 'Categories',
+  recurring: 'Recurring',
+  register: 'Register',
+  debts: 'Debts',
+  directDeposits: 'DirectDeposits'
+};
+
+const TAB_HEADERS = {
+  [TABS2.accounts]:       [['Name','Balance','Color','Threshold']],
+  [TABS2.categories]:     [['Name','Planned']],
+  [TABS2.recurring]:      [['Name','Amount','Day','Account','Category','Frequency']],
+  [TABS2.register]:       [['Date','Type','Description','Account','Category','Amount']],
+  [TABS2.debts]:          [['Name','Balance','MinDue','Limit','Day','Status']],
+  [TABS2.directDeposits]: [['Name','Amount','Account','Frequency','NextDate']]
+};
+
+let mode = 'sample'; // 'sample' or 'google'
+let tokenClient;
+let accessToken = null;
+let tokenExpiresAt = 0;
+let refreshInFlight = null;
+let authInFlight = false;
+let sheetId = null;
+
+function initGoogle() {
+  if (typeof google === 'undefined' || !google.accounts) { setTimeout(initGoogle, 300); return; }
+  google.accounts.id.initialize({ client_id: CLIENT_ID, callback: () => {} });
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: () => {}
+  });
+}
+
 let data = {
   accounts: [],
   categories: [],
@@ -648,48 +700,320 @@ function toast(msg, type) {
 
 /* AUTH */
 function continueWithGoogle() {
-  toast('Google sign-in and Sheet sync arrive in phase 2. Starting fresh setup instead.');
-  data.accounts = [];
-  data.categories = [];
-  data.recurring = [];
-  data.transactions = [];
-  data.debts = [];
-  data.directDeposits = [];
+  if (!tokenClient) { toast('Google sign-in is still loading. Try again in a moment.', 'error'); return; }
+  if (authInFlight) return;
+  authInFlight = true;
+  tokenClient.callback = async (resp) => {
+    authInFlight = false;
+    if (resp.error) { toast('Sign-in failed: ' + resp.error, 'error'); return; }
+    accessToken = resp.access_token;
+    tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) * 1000) - 60000;
+    await onSignedIn();
+  };
+  try {
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  } catch (e) {
+    authInFlight = false;
+    toast('Sign-in failed to start. Please try again.', 'error');
+  }
+}
+
+async function onSignedIn() {
+  mode = 'google';
+  data.accounts = []; data.categories = []; data.recurring = [];
+  data.transactions = []; data.debts = []; data.directDeposits = [];
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
-  document.getElementById('settings-account-mode').textContent = 'Not connected';
-  document.getElementById('settings-account-sub').textContent = 'Google Sheet sync connects in phase 2. This is a fresh, empty setup.';
+  document.getElementById('menu-open-sheet').style.display = 'block';
+  toast('Connecting to your Google Sheet...');
+  try {
+    await ensureSheet();
+    await flushQueue();
+    await loadAllDataFromSheet();
+  } catch (e) {
+    toast('Could not reach your Sheet. Check your connection and try again.', 'error');
+  }
+  document.getElementById('settings-account-mode').textContent = 'Connected to Google Sheets';
+  document.getElementById('settings-account-sub').textContent = 'Synced to "' + SHEET_TITLE + '" in your Google Drive.';
   renderAll();
-  openSetupModal();
+  if (!data.accounts.length) openSetupModal();
 }
 
 function continueWithSample() {
+  mode = 'sample';
   loadSampleData();
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
+  document.getElementById('menu-open-sheet').style.display = 'none';
   document.getElementById('settings-account-mode').textContent = 'Sample data mode';
-  document.getElementById('settings-account-sub').textContent = 'You are viewing sample data. Google Sheet sync connects in phase 2.';
+  document.getElementById('settings-account-sub').textContent = 'You are viewing sample data. Nothing here touches your Google Sheet.';
   renderAll();
 }
 
 function signOut() {
+  if (accessToken && typeof google !== 'undefined') {
+    try { google.accounts.oauth2.revoke(accessToken, () => {}); } catch (e) {}
+  }
+  accessToken = null; tokenExpiresAt = 0; sheetId = null; mode = 'sample';
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
   toggleUserMenu(true);
 }
 
-function resetAllData() {
-  if (!confirm('Reset all data back to the sample set?')) return;
-  loadSampleData();
+async function resetAllData() {
+  if (mode === 'sample') {
+    if (!confirm('Reset all data back to the sample set?')) return;
+    loadSampleData();
+    renderAll();
+    toast('Data reset.');
+    toggleUserMenu(true);
+    return;
+  }
+  const typed = prompt('This clears every row in your Accounts, Categories, Recurring, Register, Debts, and DirectDeposits tabs. Your old v2.5.2 tabs are not touched. Type RESET to continue.');
+  if (typed !== 'RESET') { toast('Reset cancelled.'); return; }
+  toast('Clearing your sheet...');
+  try {
+    for (const tab of Object.values(TABS2)) await clearTabRows(tab);
+  } catch (e) {
+    toast('Could not clear the sheet. Try again.', 'error');
+    return;
+  }
+  data.accounts = []; data.categories = []; data.recurring = [];
+  data.transactions = []; data.debts = []; data.directDeposits = [];
   renderAll();
-  toast('Data reset.');
+  toast('Sheet cleared.', 'success');
   toggleUserMenu(true);
+  openSetupModal();
 }
 
 function toggleUserMenu(forceClose) {
   const m = document.getElementById('user-menu');
   if (forceClose) { m.classList.remove('open'); return; }
   m.classList.toggle('open');
+}
+
+/* ---- Token lifecycle ---- */
+function isTokenValid() { return !!accessToken && Date.now() < tokenExpiresAt; }
+
+function ensureToken() {
+  if (isTokenValid()) return Promise.resolve();
+  if (authInFlight) return Promise.reject(new Error('sign-in already in progress'));
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = new Promise((resolve, reject) => {
+    let settled = false;
+    const originalCallback = tokenClient.callback;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      tokenClient.callback = originalCallback;
+      refreshInFlight = null;
+      reject(new Error('silent refresh timed out'));
+    }, 8000);
+    tokenClient.callback = (resp) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      tokenClient.callback = originalCallback;
+      refreshInFlight = null;
+      if (resp.error) { reject(new Error(resp.error)); return; }
+      accessToken = resp.access_token;
+      tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) * 1000) - 60000;
+      resolve();
+    };
+    try {
+      tokenClient.requestAccessToken({ prompt: '' });
+    } catch (e) {
+      clearTimeout(timer);
+      settled = true;
+      tokenClient.callback = originalCallback;
+      refreshInFlight = null;
+      reject(e);
+    }
+  });
+  return refreshInFlight;
+}
+
+function handleSessionExpired() {
+  accessToken = null; tokenExpiresAt = 0;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  toast('Your Google session expired. Sign in again to keep syncing.', 'error');
+}
+
+async function gFetch(url, opts) {
+  opts = opts || {};
+  try { await ensureToken(); } catch (e) { handleSessionExpired(); throw new Error('SESSION_EXPIRED'); }
+  opts.headers = Object.assign({}, opts.headers || {}, { Authorization: 'Bearer ' + accessToken });
+  let res = await fetch(url, opts);
+  if (res.status === 401) {
+    tokenExpiresAt = 0;
+    try { await ensureToken(); } catch (e) { handleSessionExpired(); throw new Error('SESSION_EXPIRED'); }
+    opts.headers = Object.assign({}, opts.headers || {}, { Authorization: 'Bearer ' + accessToken });
+    res = await fetch(url, opts);
+    if (res.status === 401) { handleSessionExpired(); throw new Error('SESSION_EXPIRED'); }
+  }
+  return res;
+}
+
+/* ---- Sheet and tab setup ---- */
+async function ensureSheet() {
+  const search = await gFetch(`https://www.googleapis.com/drive/v3/files?q=name='${SHEET_TITLE}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false&fields=files(id,name)`);
+  const found = await search.json();
+  if (found.files && found.files.length > 0) {
+    sheetId = found.files[0].id;
+    await ensureTabs();
+    return;
+  }
+  const create = await gFetch('https://sheets.googleapis.com/v4/spreadsheets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ properties: { title: SHEET_TITLE }, sheets: Object.values(TABS2).map(t => ({ properties: { title: t } })) })
+  });
+  const sheet = await create.json();
+  sheetId = sheet.spreadsheetId;
+  await addHeadersForTabs(Object.values(TABS2));
+}
+
+async function ensureTabs() {
+  const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`);
+  const meta = await r.json();
+  const existing = (meta.sheets || []).map(s => s.properties.title);
+  const requests = [];
+  const newTabs = [];
+  for (const t of Object.values(TABS2)) {
+    if (!existing.includes(t)) {
+      requests.push({ addSheet: { properties: { title: t } } });
+      newTabs.push(t);
+    }
+  }
+  if (requests.length) {
+    await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests })
+    });
+    await addHeadersForTabs(newTabs);
+  }
+}
+
+async function addHeadersForTabs(tabs) {
+  const batchData = tabs.map(t => ({ range: `${t}!A1`, values: TAB_HEADERS[t] }));
+  await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchUpdate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ valueInputOption: 'RAW', data: batchData })
+  });
+}
+
+function openSheetUrl() {
+  if (sheetId) window.open(`https://docs.google.com/spreadsheets/d/${sheetId}`, '_blank');
+  toggleUserMenu(true);
+}
+
+/* ---- Offline write queue ---- */
+const QUEUE_KEY = 'budget_pending_writes';
+function getQueue() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch (e) { return []; } }
+function setQueue(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }
+function queueWrite(item) { const q = getQueue(); q.push(item); setQueue(q); }
+
+let flushing = false;
+async function flushQueue() {
+  if (flushing || mode !== 'google' || !sheetId) return;
+  const q = getQueue();
+  if (!q.length) return;
+  flushing = true;
+  try {
+    while (getQueue().length) {
+      const item = getQueue()[0];
+      if (item.kind === 'append') await rawAppend(item.tab, item.row);
+      else if (item.kind === 'update') await rawUpdateCell(item.tab, item.rowIndex, item.colIndex, item.value);
+      setQueue(getQueue().slice(1));
+    }
+    toast('Pending entries synced to your sheet.', 'success');
+  } catch (e) {
+  } finally {
+    flushing = false;
+  }
+}
+
+async function rawAppend(tab, row) {
+  const res = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ values: [row] })
+  });
+  if (!res.ok) throw new Error('Append failed: ' + res.status);
+  return res;
+}
+
+async function appendRow(tab, row) {
+  if (mode !== 'google') return;
+  try { await rawAppend(tab, row); }
+  catch (e) { queueWrite({ kind: 'append', tab, row }); toast('Not synced yet. Saved locally and will retry.', 'error'); }
+}
+
+async function rawUpdateCell(tab, rowIndex, colIndex, value) {
+  const col = String.fromCharCode(65 + colIndex);
+  const row = rowIndex + 2;
+  const res = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}!${col}${row}?valueInputOption=RAW`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ values: [[value]] })
+  });
+  if (!res.ok) throw new Error('Update failed: ' + res.status);
+  return res;
+}
+
+async function updateRow(tab, rowIndex, rowValues) {
+  if (mode !== 'google') return;
+  for (let c = 0; c < rowValues.length; c++) {
+    try { await rawUpdateCell(tab, rowIndex, c, rowValues[c]); }
+    catch (e) { queueWrite({ kind: 'update', tab, rowIndex, colIndex: c, value: rowValues[c] }); }
+  }
+}
+
+async function deleteSheetRow(tab, rowIndex) {
+  if (mode !== 'google') return;
+  try {
+    const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`);
+    const meta = await r.json();
+    const sheetObj = meta.sheets.find(s => s.properties.title === tab);
+    if (!sheetObj) return;
+    await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: [{ deleteDimension: { range: { sheetId: sheetObj.properties.sheetId, dimension: 'ROWS', startIndex: rowIndex + 1, endIndex: rowIndex + 2 } } }] })
+    });
+  } catch (e) {
+    toast('Could not delete that row from your sheet. It stays removed locally.', 'error');
+  }
+}
+
+async function clearTabRows(tab) {
+  await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}!A2:Z10000:clear`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
+  });
+}
+
+async function readSheet(tab) {
+  const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tab}?_=${Date.now()}`, { cache: 'no-store' });
+  const json = await r.json();
+  return (json.values || []).slice(1);
+}
+
+async function loadAllDataFromSheet() {
+  const [accounts, categories, recurring, register, debts, directDeposits] = await Promise.all([
+    readSheet(TABS2.accounts), readSheet(TABS2.categories), readSheet(TABS2.recurring),
+    readSheet(TABS2.register), readSheet(TABS2.debts), readSheet(TABS2.directDeposits)
+  ]);
+  data.accounts = accounts.map(r => ({ name: r[0], balance: parseFloat(r[1]) || 0, color: r[2] || ACCOUNT_COLORS[0], threshold: parseFloat(r[3]) || 0 }));
+  data.categories = categories.map(r => ({ name: r[0], planned: parseFloat(r[1]) || 0 }));
+  data.recurring = recurring.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, day: parseInt(r[2]) || 1, account: r[3] || '', category: r[4] || '', freq: r[5] || 'Monthly' }));
+  data.transactions = register.map(r => ({ date: r[0], type: r[1], desc: r[2], account: r[3], category: r[4] || '', amount: parseFloat(r[5]) || 0 }));
+  data.debts = debts.map(r => ({ name: r[0], balance: parseFloat(r[1]) || 0, min: parseFloat(r[2]) || 0, limit: parseFloat(r[3]) || 0, day: parseInt(r[4]) || 1, status: r[5] || '' }));
+  data.directDeposits = directDeposits.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, account: r[2] || '', freq: r[3] || 'Biweekly', nextDate: r[4] || '' }));
 }
 
 /* THEME */
@@ -760,6 +1084,9 @@ function setupGoToStep2() {
 function finishSetup() {
   data.accounts = ui.setupPendingAccounts.slice();
   document.getElementById('setup-modal').classList.remove('open');
+  if (mode === 'google') {
+    data.accounts.forEach(a => appendRow(TABS2.accounts, [a.name, a.balance, a.color, a.threshold || 0]));
+  }
   renderAll();
   toast('You are all set up.', 'success');
 }
@@ -846,6 +1173,19 @@ function spendingByCategory() {
 let lastPieLabels = [], lastPieValues = [], lastPieColors = [];
 
 function renderBudget() {
+  const chipsEl = document.getElementById('budget-account-chips');
+  chipsEl.innerHTML = data.accounts.length ? data.accounts.map(a => `
+    <div class="account-chip">
+      <span class="dot" style="background:${a.color};"></span>
+      <div>
+        <div class="name">${a.name}</div>
+        <div class="bal">${fmt(a.balance)}</div>
+      </div>
+    </div>
+  `).join('') : '<div class="empty-state">Add an account in Settings to see balances here.</div>';
+  const total = data.accounts.reduce((s, a) => s + a.balance, 0);
+  document.getElementById('budget-total-balance').textContent = data.accounts.length ? 'Total across accounts: ' + fmt(total) : '';
+
   const income = monthIncome();
   const charges = monthChargesTotal();
   const surplus = income - charges;
@@ -961,6 +1301,7 @@ function addCategory() {
   const planned = parseFloat(document.getElementById('cat-amount').value) || 0;
   if (!name) { toast('Enter a category name first.', 'error'); return; }
   data.categories.push({ name, planned });
+  appendRow(TABS2.categories, [name, planned]);
   document.getElementById('cat-name').value = '';
   document.getElementById('cat-amount').value = '';
   populateCategorySelects();
@@ -970,6 +1311,7 @@ function addCategory() {
 
 function removeCategory(i) {
   data.categories.splice(i, 1);
+  deleteSheetRow(TABS2.categories, i);
   populateCategorySelects();
   renderBudget();
 }
@@ -985,13 +1327,16 @@ function saveRecurring() {
     freq: document.getElementById('rec-freq').value
   };
   if (!item.name) { toast('Enter a name first.', 'error'); return; }
+  const row = [item.name, item.amount, item.day, item.account, item.category, item.freq];
   if (ui.editingRecurring !== null) {
     data.recurring[ui.editingRecurring] = item;
+    updateRow(TABS2.recurring, ui.editingRecurring, row);
     ui.editingRecurring = null;
     document.getElementById('rec-cancel-btn').style.display = 'none';
     document.getElementById('recurring-form-title').textContent = 'Add a recurring charge';
   } else {
     data.recurring.push(item);
+    appendRow(TABS2.recurring, row);
   }
   ['rec-name','rec-amount','rec-day'].forEach(id => document.getElementById(id).value = '');
   renderRecurring();
@@ -1023,6 +1368,7 @@ function cancelEditRecurring() {
 function deleteRecurring(i) {
   if (!confirm('Delete this recurring charge?')) return;
   data.recurring.splice(i, 1);
+  deleteSheetRow(TABS2.recurring, i);
   renderRecurring();
   renderBudget();
 }
@@ -1076,11 +1422,15 @@ function addTransaction() {
 
   if (type === 'transfer') {
     const toAccount = document.getElementById('txn-to-account').value;
-    data.transactions.push({ date, type: 'transfer', desc: desc + ' (to ' + toAccount + ')', amount, account, category: '' });
+    const t = { date, type: 'transfer', desc: desc + ' (to ' + toAccount + ')', amount, account, category: '' };
+    data.transactions.push(t);
+    appendRow(TABS2.register, [t.date, t.type, t.desc, t.account, t.category, t.amount]);
     adjustBalance(account, -amount);
     adjustBalance(toAccount, amount);
   } else {
-    data.transactions.push({ date, type, desc, amount, account, category });
+    const t = { date, type, desc, amount, account, category };
+    data.transactions.push(t);
+    appendRow(TABS2.register, [t.date, t.type, t.desc, t.account, t.category, t.amount]);
     adjustBalance(account, type === 'deposit' ? amount : -amount);
   }
 
@@ -1093,8 +1443,11 @@ function addTransaction() {
 }
 
 function adjustBalance(accountName, delta) {
-  const a = data.accounts.find(a => a.name === accountName);
-  if (a) a.balance += delta;
+  const i = data.accounts.findIndex(a => a.name === accountName);
+  if (i < 0) return;
+  data.accounts[i].balance += delta;
+  const a = data.accounts[i];
+  updateRow(TABS2.accounts, i, [a.name, a.balance, a.color, a.threshold || 0]);
 }
 
 function findRecurringMatches() {
@@ -1157,13 +1510,16 @@ function saveDebt() {
     status: document.getElementById('debt-status').value.trim()
   };
   if (!item.name) { toast('Enter a name first.', 'error'); return; }
+  const row = [item.name, item.balance, item.min, item.limit, item.day, item.status];
   if (ui.editingDebt !== null) {
     data.debts[ui.editingDebt] = item;
+    updateRow(TABS2.debts, ui.editingDebt, row);
     ui.editingDebt = null;
     document.getElementById('debt-cancel-btn').style.display = 'none';
     document.getElementById('debt-form-title').textContent = 'Add a debt';
   } else {
     data.debts.push(item);
+    appendRow(TABS2.debts, row);
   }
   ['debt-name','debt-balance','debt-min','debt-limit','debt-day','debt-status'].forEach(id => document.getElementById(id).value = '');
   renderDebts();
@@ -1194,6 +1550,7 @@ function cancelEditDebt() {
 function deleteDebt(i) {
   if (!confirm('Delete this debt?')) return;
   data.debts.splice(i, 1);
+  deleteSheetRow(TABS2.debts, i);
   renderDebts();
 }
 
@@ -1243,13 +1600,16 @@ function saveAccount() {
     color: ui.settingsSelectedColor || ACCOUNT_COLORS[0]
   };
   if (!item.name) { toast('Enter an account name first.', 'error'); return; }
+  const row = [item.name, item.balance, item.color, item.threshold || 0];
   if (ui.editingAccount !== null) {
     data.accounts[ui.editingAccount] = item;
+    updateRow(TABS2.accounts, ui.editingAccount, row);
     ui.editingAccount = null;
     document.getElementById('acc-cancel-btn').style.display = 'none';
     document.getElementById('acc-submit-btn').textContent = 'Add account';
   } else {
     data.accounts.push(item);
+    appendRow(TABS2.accounts, row);
   }
   ['acc-name','acc-balance','acc-threshold'].forEach(id => document.getElementById(id).value = '');
   renderAll();
@@ -1279,6 +1639,7 @@ function cancelEditAccount() {
 function deleteAccount(i) {
   if (!confirm('Delete this account?')) return;
   data.accounts.splice(i, 1);
+  deleteSheetRow(TABS2.accounts, i);
   renderAll();
 }
 
@@ -1313,13 +1674,16 @@ function saveDirectDeposit() {
     nextDate: document.getElementById('dd-next-date').value
   };
   if (!item.name) { toast('Enter a name first.', 'error'); return; }
+  const row = [item.name, item.amount, item.account, item.freq, item.nextDate];
   if (ui.editingDirectDeposit !== null && ui.editingDirectDeposit !== undefined) {
     data.directDeposits[ui.editingDirectDeposit] = item;
+    updateRow(TABS2.directDeposits, ui.editingDirectDeposit, row);
     ui.editingDirectDeposit = null;
     document.getElementById('dd-cancel-btn').style.display = 'none';
     document.getElementById('dd-form-title').textContent = 'Add a direct deposit';
   } else {
     data.directDeposits.push(item);
+    appendRow(TABS2.directDeposits, row);
   }
   ['dd-name','dd-amount','dd-next-date'].forEach(id => document.getElementById(id).value = '');
   renderDirectDeposits();
@@ -1350,6 +1714,7 @@ function cancelEditDirectDeposit() {
 function deleteDirectDeposit(i) {
   if (!confirm('Delete this direct deposit?')) return;
   data.directDeposits.splice(i, 1);
+  deleteSheetRow(TABS2.directDeposits, i);
   renderDirectDeposits();
   renderBudget();
 }
@@ -1384,6 +1749,7 @@ document.addEventListener('click', function(e) {
 
 document.getElementById('txn-date').value = new Date().toISOString().slice(0,10);
 ui.settingsSelectedColor = ACCOUNT_COLORS[0];
+window.addEventListener('load', initGoogle);
 </script>
 </body>
 </html>
