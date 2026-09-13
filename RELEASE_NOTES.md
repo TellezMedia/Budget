@@ -1,5 +1,27 @@
 # Budget app, release notes
 
+## v3.5.0-beta, category colors are now real and user-picked
+
+Category colors used to be purely positional, whatever color lined up with a
+category's place in the list. Add, delete, or reload, and colors could shift for
+categories you never touched. Accounts already had real, stored colors, Categories
+never got the same treatment until now.
+
+**Add category is now a modal** with a name field, planned amount, and a native color
+picker, opened from an "Add category" button on both Budget and Bill Tracking, so you
+can create a category from wherever you happen to need one without switching screens.
+The color you pick is stored in the Categories tab and stays attached to that category
+regardless of order or how many others get added later.
+
+Categories loaded from a sheet saved before this change (no color in column C) get a
+cycling fallback color assigned on read, same as before, so nothing breaks, they just
+won't have a deliberately chosen color until you edit them.
+
+### Known gap
+
+There's no way yet to change a category's color after creating it, short of deleting
+and re-adding it. Worth a follow-up if that comes up.
+
 ## v3.4.0-beta, category card grid replaces pie chart and progress bars
 
 The pie chart and the progress bar list were both answering "how's my spending by

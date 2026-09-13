@@ -255,10 +255,32 @@ select option { background: var(--surface2); }
   </div>
 </div>
 
+<!-- ADD CATEGORY MODAL -->
+<div class="modal-overlay" id="category-modal">
+  <div class="modal-card">
+    <div class="modal-title">Add a category</div>
+    <div class="modal-sub">Pick a color to make it easy to spot on the budget grid.</div>
+    <div class="form-group" style="margin-bottom:14px;">
+      <label>Category name</label>
+      <input type="text" id="new-cat-name" placeholder="Housing, subscriptions..." />
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+      <label>Planned monthly amount</label>
+      <input type="number" id="new-cat-amount" placeholder="0.00" step="0.01" />
+    </div>
+    <div class="form-group" style="margin-bottom:20px;">
+      <label>Color</label>
+      <input type="color" id="new-cat-color" value="#4f8ef7" style="width:100%;height:44px;padding:4px;cursor:pointer;" />
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-bottom:10px;" onclick="submitCategoryModal()">Add category</button>
+    <button class="btn btn-secondary" style="width:100%;" onclick="closeCategoryModal()">Cancel</button>
+  </div>
+</div>
+
 <!-- APP -->
 <div id="app">
   <header>
-    <div class="header-brand">Budget <span style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v3.4.0-beta</span></div>
+    <div class="header-brand">Budget <span style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v3.5.0-beta</span></div>
     <div style="display:flex;align-items:center;margin-left:auto;">
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">&#9790; Dark</button>
       <div class="header-user" onclick="toggleUserMenu()">
@@ -304,19 +326,7 @@ select option { background: var(--surface2); }
 
       <div class="section-header-row">
         <div class="section-title" style="margin-bottom:0;">Category budgets</div>
-      </div>
-      <div class="form-card">
-        <div class="form-grid" style="margin-bottom:12px;">
-          <div class="form-group">
-            <label>Category name</label>
-            <input type="text" id="cat-name" placeholder="Housing, subscriptions..." />
-          </div>
-          <div class="form-group">
-            <label>Planned monthly amount</label>
-            <input type="number" id="cat-amount" placeholder="0.00" step="0.01" />
-          </div>
-        </div>
-        <button class="btn btn-secondary btn-sm" onclick="addCategory()">Add category</button>
+        <button class="btn btn-secondary btn-sm" onclick="openCategoryModal()">Add category</button>
       </div>
       <div id="category-card-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;"></div>
 
@@ -333,7 +343,10 @@ select option { background: var(--surface2); }
 
     <!-- BILL TRACKING -->
     <div id="screen-recurring" class="screen">
-      <div class="section-title">Recurring charges</div>
+      <div class="section-header-row">
+        <div class="section-title" style="margin-bottom:0;">Recurring charges</div>
+        <button class="btn btn-secondary btn-sm" onclick="openCategoryModal()">Add category</button>
+      </div>
       <div class="form-card">
         <div class="form-title" id="recurring-form-title">Add a recurring charge</div>
         <div class="form-grid">
@@ -612,7 +625,7 @@ const TABS2 = {
 
 const TAB_HEADERS = {
   [TABS2.accounts]:          [['Name','Balance','Color']],
-  [TABS2.categories]:        [['Name','Planned']],
+  [TABS2.categories]:        [['Name','Planned','Color']],
   [TABS2.recurring]:         [['Name','Amount','Day','Account','Category','Frequency','PaidMonth']],
   [TABS2.register]:          [['Date','Type','Description','Account','Category','Amount']],
   [TABS2.debts]:             [['Name','Balance','MinDue','Limit','Day','Status']],
@@ -671,11 +684,11 @@ function loadSampleData() {
     { name: 'Chime savings', balance: 620.10, color: '#f7a84f' }
   ];
   data.categories = [
-    { name: 'Housing', planned: 1900 },
-    { name: 'Utilities', planned: 250 },
-    { name: 'Subscriptions', planned: 100 },
-    { name: 'Debt', planned: 900 },
-    { name: 'Personal', planned: 200 }
+    { name: 'Housing', planned: 1900, color: '#4f8ef7' },
+    { name: 'Utilities', planned: 250, color: '#38d9a9' },
+    { name: 'Subscriptions', planned: 100, color: '#f7a84f' },
+    { name: 'Debt', planned: 900, color: '#f76f6f' },
+    { name: 'Personal', planned: 200, color: '#a78bfa' }
   ];
   data.recurring = [
     { name: 'Rent and sewer/water/trash', amount: 1723, day: 1, account: 'Chime checking', category: 'Housing', freq: 'Monthly', paidMonth: '' },
@@ -1098,7 +1111,7 @@ async function loadAllDataFromSheet() {
     readSheet(TABS2.scheduledPayments), readSheet(TABS2.recurringIgnore), readSheet(TABS2.history), readSheet(TABS2.meta)
   ]);
   data.accounts = accounts.map(r => ({ name: r[0], balance: parseFloat(r[1]) || 0, color: r[2] || ACCOUNT_COLORS[0] }));
-  data.categories = categories.map(r => ({ name: r[0], planned: parseFloat(r[1]) || 0 }));
+  data.categories = categories.map((r, i) => ({ name: r[0], planned: parseFloat(r[1]) || 0, color: r[2] || PIE_COLORS[i % PIE_COLORS.length] }));
   data.recurring = recurring.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, day: parseInt(r[2]) || 1, account: r[3] || '', category: r[4] || '', freq: r[5] || 'Monthly', paidMonth: r[6] || '' }));
   data.transactions = register.map(r => ({ date: r[0], type: r[1], desc: r[2], account: r[3], category: r[4] || '', amount: parseFloat(r[5]) || 0 }));
   data.debts = debts.map(r => ({ name: r[0], balance: parseFloat(r[1]) || 0, min: parseFloat(r[2]) || 0, limit: parseFloat(r[3]) || 0, day: parseInt(r[4]) || 1, status: r[5] || '' }));
@@ -1177,9 +1190,9 @@ function setupGoToStep2() {
 const DEFAULT_CATEGORIES = ['Food','Gas','Groceries','Entertainment','Shopping','Health','Utilities','Subscriptions','Dining Out','Personal Care','Auto','Other'];
 
 function seedDefaultCategories() {
-  data.categories = DEFAULT_CATEGORIES.map(name => ({ name, planned: 0 }));
+  data.categories = DEFAULT_CATEGORIES.map((name, i) => ({ name, planned: 0, color: PIE_COLORS[i % PIE_COLORS.length] }));
   if (mode === 'google') {
-    data.categories.forEach(c => appendRow(TABS2.categories, [c.name, c.planned]));
+    data.categories.forEach(c => appendRow(TABS2.categories, [c.name, c.planned, c.color]));
   }
 }
 
@@ -1318,7 +1331,7 @@ function renderBudget() {
   } else {
     grid.innerHTML = visible.map((c) => {
       const i = data.categories.indexOf(c);
-      const color = PIE_COLORS[i % PIE_COLORS.length];
+      const color = c.color || PIE_COLORS[i % PIE_COLORS.length];
       const spent = spend[c.name] || 0;
       const pct = c.planned > 0 ? Math.round((spent / c.planned) * 100) : null;
       const badgeColor = pct === null ? 'var(--muted)' : (pct > 100 ? '#f76f6f' : color);
@@ -1368,16 +1381,27 @@ function daySuffix(d) {
   switch (d % 10) { case 1: return 'st'; case 2: return 'nd'; case 3: return 'rd'; default: return 'th'; }
 }
 
-function addCategory() {
-  const name = document.getElementById('cat-name').value.trim();
-  const planned = parseFloat(document.getElementById('cat-amount').value) || 0;
+function openCategoryModal() {
+  document.getElementById('new-cat-name').value = '';
+  document.getElementById('new-cat-amount').value = '';
+  document.getElementById('new-cat-color').value = PIE_COLORS[data.categories.length % PIE_COLORS.length];
+  document.getElementById('category-modal').classList.add('open');
+}
+
+function closeCategoryModal() {
+  document.getElementById('category-modal').classList.remove('open');
+}
+
+function submitCategoryModal() {
+  const name = document.getElementById('new-cat-name').value.trim();
+  const planned = parseFloat(document.getElementById('new-cat-amount').value) || 0;
+  const color = document.getElementById('new-cat-color').value;
   if (!name) { toast('Enter a category name first.', 'error'); return; }
-  data.categories.push({ name, planned });
-  appendRow(TABS2.categories, [name, planned]);
-  document.getElementById('cat-name').value = '';
-  document.getElementById('cat-amount').value = '';
+  data.categories.push({ name, planned, color });
+  appendRow(TABS2.categories, [name, planned, color]);
   populateCategorySelects();
   renderBudget();
+  closeCategoryModal();
   toast('Category added.', 'success');
 }
 
