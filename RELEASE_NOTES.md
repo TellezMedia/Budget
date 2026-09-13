@@ -1,5 +1,57 @@
 # Budget app, release notes
 
+## v3.3.0-beta, Bill Tracking, running debt balances, history, recurring dismiss
+
+**Bill Tracking replaces the separate Recurring Charges and Debts tabs.** One screen,
+two sections. Recurring charges keep their own form and table at the top, debts sit
+below. The standalone Debts nav item is gone.
+
+**Recurring charges now have a real paid status.** "Mark paid" opens a small modal
+asking which account it came from, deducts that account's balance, logs it to
+Register, and flips the badge to Paid for the current cycle. It resets to Due
+automatically once the next cycle starts, based on the charge's own paid month rather
+than a manual reset.
+
+**Debts get a running balance.** "Log a payment" asks for an amount and an account,
+then reduces the debt balance, deducts the account balance, and logs it to Register,
+same mechanism as recurring charges. "Schedule a payment" does the same for a future
+date. Scheduled payments sit in a visible list and apply themselves automatically once
+their date arrives, no confirmation step, checked every time the app loads or you
+navigate.
+
+**Low balance alert field is gone.** Removed from the Settings form, the account
+table, and the Sheet write. The Accounts tab header dropped from four columns to
+three, existing sheets with a leftover Threshold column are unaffected, the app just
+stops reading and writing it.
+
+**History lives in the Sheet.** A new History tab captures each closed month's income,
+spend, surplus, and category breakdown. This only starts from your setup date, nothing
+before it gets backfilled, which is also the boundary Plaid will respect once that's
+connected, so bank sync and history never disagree about where the timeline starts. A
+compact history list now shows on the Budget screen under Upcoming charges.
+
+**Recurring detection can be dismissed.** A "Not recurring" option next to the "Looks
+recurring" badge in Register. Dismissing it adds the description to an ignore list
+that persists in the Sheet, so the same false positive won't keep coming back.
+
+### A few things worth knowing
+
+History's income figure for a closed month falls back to your current direct deposit
+schedule if no deposit transactions were logged that month, since payroll generally
+isn't itemized as a transaction in this app. That's an approximation, worth watching
+once you have a few real months to compare against.
+
+Recurring charges and debt payments now both write directly to Register when marked
+paid or logged, so Register is becoming the single source of truth for what actually
+happened, separate from what's planned.
+
+### Suggested commit message
+
+`Merge recurring charges and debts into Bill Tracking as v3.3.0-beta: real paid
+status and account deduction for both, auto-applying scheduled debt payments, sheet-
+backed month history from setup date, dismissible recurring detection, low balance
+field removed`
+
 ## v3.2.0-beta, account balances on Budget, Google Sheets sync
 
 **Account balances on the Budget screen.** A new top row shows each account as a color

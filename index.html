@@ -232,10 +232,32 @@ select option { background: var(--surface2); }
   </div>
 </div>
 
+<!-- PAY MODAL: used for recurring charge paid, debt payment, and debt scheduled payment -->
+<div class="modal-overlay" id="pay-modal">
+  <div class="modal-card">
+    <div class="modal-title" id="pay-modal-title">Log a payment</div>
+    <div class="modal-sub" id="pay-modal-sub"></div>
+    <div class="form-group" style="margin-bottom:14px;" id="pay-amount-group">
+      <label>Amount</label>
+      <input type="number" id="pay-amount" placeholder="0.00" step="0.01" />
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+      <label>Account</label>
+      <select id="pay-account"></select>
+    </div>
+    <div class="form-group" style="margin-bottom:20px;" id="pay-date-group">
+      <label>Date</label>
+      <input type="date" id="pay-date" />
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-bottom:10px;" id="pay-modal-submit" onclick="submitPayModal()">Confirm</button>
+    <button class="btn btn-secondary" style="width:100%;" onclick="closePayModal()">Cancel</button>
+  </div>
+</div>
+
 <!-- APP -->
 <div id="app">
   <header>
-    <div class="header-brand">Budget <span style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v3.2.0-beta</span></div>
+    <div class="header-brand">Budget <span style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v3.3.0-beta</span></div>
     <div style="display:flex;align-items:center;margin-left:auto;">
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">&#9790; Dark</button>
       <div class="header-user" onclick="toggleUserMenu()">
@@ -252,9 +274,8 @@ select option { background: var(--surface2); }
 
   <nav>
     <div class="nav-tab active" data-screen="budget" onclick="showScreen('budget')">Budget</div>
-    <div class="nav-tab" data-screen="recurring" onclick="showScreen('recurring')"><span class="stacked">Recurring</span><span class="stacked">Charges</span></div>
+    <div class="nav-tab" data-screen="recurring" onclick="showScreen('recurring')"><span class="stacked">Bill</span><span class="stacked">Tracking</span></div>
     <div class="nav-tab" data-screen="register" onclick="showScreen('register')">Register</div>
-    <div class="nav-tab" data-screen="debts" onclick="showScreen('debts')">Debts</div>
     <div class="nav-tab" data-screen="settings" onclick="showScreen('settings')">Settings</div>
   </nav>
 
@@ -310,10 +331,16 @@ select option { background: var(--surface2); }
       <div class="upcoming-list">
         <div id="upcoming-list-body"><div class="empty-state">No recurring charges yet.</div></div>
       </div>
+
+      <div class="section-title">History</div>
+      <div class="upcoming-list">
+        <div id="history-list-body"><div class="empty-state">History starts building up after your first full month.</div></div>
+      </div>
     </div>
 
-    <!-- RECURRING CHARGES -->
+    <!-- BILL TRACKING -->
     <div id="screen-recurring" class="screen">
+      <div class="section-title">Recurring charges</div>
       <div class="form-card">
         <div class="form-title" id="recurring-form-title">Add a recurring charge</div>
         <div class="form-grid">
@@ -358,6 +385,58 @@ select option { background: var(--surface2); }
           </thead>
           <tbody id="recurring-tbody"><tr><td colspan="8"><div class="empty-state">No recurring charges yet.</div></td></tr></tbody>
         </table>
+      </div>
+
+      <div class="section-title" style="margin-top:12px;">Debts</div>
+      <div class="form-card">
+        <div class="form-title" id="debt-form-title">Add a debt</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="debt-name" placeholder="Chase Sapphire, car loan..." />
+          </div>
+          <div class="form-group">
+            <label>Balance</label>
+            <input type="number" id="debt-balance" placeholder="0.00" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>Minimum due</label>
+            <input type="number" id="debt-min" placeholder="0.00" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>Credit limit (optional)</label>
+            <input type="number" id="debt-limit" placeholder="0.00" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>Due day of month</label>
+            <input type="number" id="debt-day" placeholder="1-31" min="1" max="31" />
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <input type="text" id="debt-status" placeholder="open, unpaid, autopay..." />
+          </div>
+        </div>
+        <button class="btn btn-primary" id="debt-submit-btn" onclick="saveDebt()">Save debt</button>
+        <button class="btn btn-secondary" id="debt-cancel-btn" onclick="cancelEditDebt()" style="display:none;">Cancel edit</button>
+      </div>
+
+      <div class="data-table">
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Balance</th><th>Min due</th><th>Limit</th><th>Used</th><th>Due day</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody id="debts-tbody"><tr><td colspan="8"><div class="empty-state">No debts added yet.</div></td></tr></tbody>
+        </table>
+      </div>
+
+      <div id="scheduled-payments-block" style="display:none;">
+        <div class="section-title">Scheduled debt payments</div>
+        <div class="data-table">
+          <table>
+            <thead><tr><th>Debt</th><th>Amount</th><th>Account</th><th>Date</th></tr></thead>
+            <tbody id="scheduled-payments-tbody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -415,50 +494,6 @@ select option { background: var(--surface2); }
       </div>
     </div>
 
-    <!-- DEBTS -->
-    <div id="screen-debts" class="screen">
-      <div class="form-card">
-        <div class="form-title" id="debt-form-title">Add a debt</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Name</label>
-            <input type="text" id="debt-name" placeholder="Chase Sapphire, car loan..." />
-          </div>
-          <div class="form-group">
-            <label>Balance</label>
-            <input type="number" id="debt-balance" placeholder="0.00" step="0.01" />
-          </div>
-          <div class="form-group">
-            <label>Minimum due</label>
-            <input type="number" id="debt-min" placeholder="0.00" step="0.01" />
-          </div>
-          <div class="form-group">
-            <label>Credit limit (optional)</label>
-            <input type="number" id="debt-limit" placeholder="0.00" step="0.01" />
-          </div>
-          <div class="form-group">
-            <label>Due day of month</label>
-            <input type="number" id="debt-day" placeholder="1-31" min="1" max="31" />
-          </div>
-          <div class="form-group">
-            <label>Status</label>
-            <input type="text" id="debt-status" placeholder="open, unpaid, autopay..." />
-          </div>
-        </div>
-        <button class="btn btn-primary" id="debt-submit-btn" onclick="saveDebt()">Save debt</button>
-        <button class="btn btn-secondary" id="debt-cancel-btn" onclick="cancelEditDebt()" style="display:none;">Cancel edit</button>
-      </div>
-
-      <div class="data-table">
-        <table>
-          <thead>
-            <tr><th>Name</th><th>Balance</th><th>Min due</th><th>Limit</th><th>Used</th><th>Due day</th><th>Status</th><th></th></tr>
-          </thead>
-          <tbody id="debts-tbody"><tr><td colspan="8"><div class="empty-state">No debts added yet.</div></td></tr></tbody>
-        </table>
-      </div>
-    </div>
-
     <!-- SETTINGS -->
     <div id="screen-settings" class="screen">
       <div class="section-title">Accounts</div>
@@ -472,10 +507,6 @@ select option { background: var(--surface2); }
             <label>Starting balance</label>
             <input type="number" id="acc-balance" placeholder="0.00" step="0.01" />
           </div>
-          <div class="form-group">
-            <label>Low balance alert</label>
-            <input type="number" id="acc-threshold" placeholder="0.00" step="0.01" />
-          </div>
         </div>
         <div class="form-group" style="margin-bottom:16px;">
           <label>Color</label>
@@ -486,8 +517,8 @@ select option { background: var(--surface2); }
       </div>
       <div class="data-table">
         <table>
-          <thead><tr><th>Account</th><th>Color</th><th>Balance</th><th>Alert below</th><th></th></tr></thead>
-          <tbody id="settings-accounts-tbody"><tr><td colspan="5"><div class="empty-state">No accounts yet.</div></td></tr></tbody>
+          <thead><tr><th>Account</th><th>Color</th><th>Balance</th><th></th></tr></thead>
+          <tbody id="settings-accounts-tbody"><tr><td colspan="4"><div class="empty-state">No accounts yet.</div></td></tr></tbody>
         </table>
       </div>
 
@@ -579,16 +610,24 @@ const TABS2 = {
   recurring: 'Recurring',
   register: 'Register',
   debts: 'Debts',
-  directDeposits: 'DirectDeposits'
+  directDeposits: 'DirectDeposits',
+  scheduledPayments: 'ScheduledPayments',
+  recurringIgnore: 'RecurringIgnore',
+  history: 'History',
+  meta: 'Meta'
 };
 
 const TAB_HEADERS = {
-  [TABS2.accounts]:       [['Name','Balance','Color','Threshold']],
-  [TABS2.categories]:     [['Name','Planned']],
-  [TABS2.recurring]:      [['Name','Amount','Day','Account','Category','Frequency']],
-  [TABS2.register]:       [['Date','Type','Description','Account','Category','Amount']],
-  [TABS2.debts]:          [['Name','Balance','MinDue','Limit','Day','Status']],
-  [TABS2.directDeposits]: [['Name','Amount','Account','Frequency','NextDate']]
+  [TABS2.accounts]:          [['Name','Balance','Color']],
+  [TABS2.categories]:        [['Name','Planned']],
+  [TABS2.recurring]:         [['Name','Amount','Day','Account','Category','Frequency','PaidMonth']],
+  [TABS2.register]:          [['Date','Type','Description','Account','Category','Amount']],
+  [TABS2.debts]:             [['Name','Balance','MinDue','Limit','Day','Status']],
+  [TABS2.directDeposits]:    [['Name','Amount','Account','Frequency','NextDate']],
+  [TABS2.scheduledPayments]: [['DebtName','Amount','Account','Date']],
+  [TABS2.recurringIgnore]:   [['Name']],
+  [TABS2.history]:           [['Month','Income','Charges','Surplus','CategoryBreakdown']],
+  [TABS2.meta]:              [['Key','Value']]
 };
 
 let mode = 'sample'; // 'sample' or 'google'
@@ -615,8 +654,14 @@ let data = {
   recurring: [],
   transactions: [],
   debts: [],
-  directDeposits: []
+  directDeposits: [],
+  scheduledPayments: [],
+  recurringIgnore: [],
+  history: [],
+  setupDate: null
 };
+
+let payModalCtx = null;
 
 let ui = {
   editingRecurring: null,
@@ -628,9 +673,9 @@ let ui = {
 
 function loadSampleData() {
   data.accounts = [
-    { name: 'PNC checking', balance: 2317.20, color: '#4f8ef7', threshold: 100 },
-    { name: 'Chime checking', balance: 441.85, color: '#38d9a9', threshold: 50 },
-    { name: 'Chime savings', balance: 620.10, color: '#f7a84f', threshold: 0 }
+    { name: 'PNC checking', balance: 2317.20, color: '#4f8ef7' },
+    { name: 'Chime checking', balance: 441.85, color: '#38d9a9' },
+    { name: 'Chime savings', balance: 620.10, color: '#f7a84f' }
   ];
   data.categories = [
     { name: 'Housing', planned: 1900 },
@@ -640,16 +685,16 @@ function loadSampleData() {
     { name: 'Personal', planned: 200 }
   ];
   data.recurring = [
-    { name: 'Rent and sewer/water/trash', amount: 1723, day: 1, account: 'Chime checking', category: 'Housing', freq: 'Monthly' },
-    { name: 'AT&T internet', amount: 81, day: 25, account: 'Chime checking', category: 'Utilities', freq: 'Monthly' },
-    { name: 'AT&T wireless', amount: 381, day: 25, account: 'Chime checking', category: 'Utilities', freq: 'Monthly' },
-    { name: 'Duke Energy', amount: 140, day: 8, account: 'Chime checking', category: 'Utilities', freq: 'Monthly' },
-    { name: 'Spotify', amount: 15.99, day: 2, account: 'Chime checking', category: 'Subscriptions', freq: 'Monthly' },
-    { name: 'Apple One', amount: 22.95, day: 1, account: 'Chime checking', category: 'Subscriptions', freq: 'Monthly' },
-    { name: 'Disney+', amount: 10.99, day: 19, account: 'Chime checking', category: 'Subscriptions', freq: 'Monthly' },
-    { name: 'Everwise CU car payment', amount: 600, day: 15, account: 'Chime checking', category: 'Debt', freq: 'Monthly' },
-    { name: 'Geico car insurance', amount: 108.90, day: 6, account: 'Chime checking', category: 'Personal', freq: 'Monthly' },
-    { name: 'Chewy', amount: 76.96, day: 16, account: 'Chime checking', category: 'Personal', freq: 'Monthly' }
+    { name: 'Rent and sewer/water/trash', amount: 1723, day: 1, account: 'Chime checking', category: 'Housing', freq: 'Monthly', paidMonth: '' },
+    { name: 'AT&T internet', amount: 81, day: 25, account: 'Chime checking', category: 'Utilities', freq: 'Monthly', paidMonth: '' },
+    { name: 'AT&T wireless', amount: 381, day: 25, account: 'Chime checking', category: 'Utilities', freq: 'Monthly', paidMonth: '' },
+    { name: 'Duke Energy', amount: 140, day: 8, account: 'Chime checking', category: 'Utilities', freq: 'Monthly', paidMonth: monthKey(new Date()) },
+    { name: 'Spotify', amount: 15.99, day: 2, account: 'Chime checking', category: 'Subscriptions', freq: 'Monthly', paidMonth: monthKey(new Date()) },
+    { name: 'Apple One', amount: 22.95, day: 1, account: 'Chime checking', category: 'Subscriptions', freq: 'Monthly', paidMonth: '' },
+    { name: 'Disney+', amount: 10.99, day: 19, account: 'Chime checking', category: 'Subscriptions', freq: 'Monthly', paidMonth: '' },
+    { name: 'Everwise CU car payment', amount: 600, day: 15, account: 'Chime checking', category: 'Debt', freq: 'Monthly', paidMonth: '' },
+    { name: 'Geico car insurance', amount: 108.90, day: 6, account: 'Chime checking', category: 'Personal', freq: 'Monthly', paidMonth: '' },
+    { name: 'Chewy', amount: 76.96, day: 16, account: 'Chime checking', category: 'Personal', freq: 'Monthly', paidMonth: '' }
   ];
   data.transactions = [
     { date: daysAgo(2), type: 'expense', desc: 'Kroger', amount: 84.12, account: 'Chime checking', category: 'Personal' },
@@ -671,6 +716,53 @@ function loadSampleData() {
     { name: 'Legacy', balance: 522.46, min: 30, limit: 600, day: 23, status: '' },
     { name: 'CapOne', balance: 3021.42, min: 110, limit: 3000, day: 8, status: '' }
   ];
+  data.scheduledPayments = [
+    { debtName: 'Blaze', amount: 30, account: 'Chime checking', date: daysAhead(4) }
+  ];
+  data.recurringIgnore = [];
+  data.setupDate = daysAgo(90);
+  const lastMonthDate = new Date();
+  lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+  data.history = [
+    { month: monthKey(lastMonthDate), income: 5096, charges: 3300, surplus: 1796, breakdown: { Housing: 1723, Utilities: 602, Subscriptions: 88, Debt: 600, Personal: 210 } }
+  ];
+}
+
+function monthKey(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+async function checkMonthRollover() {
+  if (mode !== 'google' || !data.setupDate) return;
+  const setup = new Date(data.setupDate);
+  const setupMonth = monthKey(setup);
+  const now = new Date();
+  const cursor = new Date(setup.getFullYear(), setup.getMonth(), 1);
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const existing = new Set(data.history.map(h => h.month));
+
+  while (cursor < currentMonthStart) {
+    const key = monthKey(cursor);
+    if (key >= setupMonth && !existing.has(key)) {
+      const snap = computeMonthSnapshot(cursor);
+      data.history.push(snap);
+      appendRow(TABS2.history, [snap.month, snap.income, snap.charges, snap.surplus, JSON.stringify(snap.breakdown)]);
+    }
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+}
+
+function computeMonthSnapshot(monthDate) {
+  const y = monthDate.getFullYear(), m = monthDate.getMonth();
+  const monthTxns = data.transactions.filter(t => { const d = new Date(t.date); return d.getFullYear() === y && d.getMonth() === m; });
+  const income = monthTxns.filter(t => t.type === 'deposit').reduce((s, t) => s + t.amount, 0) || monthIncome();
+  const charges = monthTxns.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const breakdown = {};
+  monthTxns.filter(t => t.type === 'expense').forEach(t => {
+    const cat = t.category || 'Uncategorized';
+    breakdown[cat] = (breakdown[cat] || 0) + t.amount;
+  });
+  return { month: monthKey(monthDate), income, charges, surplus: income - charges, breakdown };
 }
 
 function daysAgo(n) {
@@ -722,6 +814,7 @@ async function onSignedIn() {
   mode = 'google';
   data.accounts = []; data.categories = []; data.recurring = [];
   data.transactions = []; data.debts = []; data.directDeposits = [];
+  data.scheduledPayments = []; data.recurringIgnore = []; data.history = []; data.setupDate = null;
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('menu-open-sheet').style.display = 'block';
@@ -730,6 +823,7 @@ async function onSignedIn() {
     await ensureSheet();
     await flushQueue();
     await loadAllDataFromSheet();
+    await checkMonthRollover();
   } catch (e) {
     toast('Could not reach your Sheet. Check your connection and try again.', 'error');
   }
@@ -1004,16 +1098,22 @@ async function readSheet(tab) {
 }
 
 async function loadAllDataFromSheet() {
-  const [accounts, categories, recurring, register, debts, directDeposits] = await Promise.all([
+  const [accounts, categories, recurring, register, debts, directDeposits, scheduled, ignore, history, meta] = await Promise.all([
     readSheet(TABS2.accounts), readSheet(TABS2.categories), readSheet(TABS2.recurring),
-    readSheet(TABS2.register), readSheet(TABS2.debts), readSheet(TABS2.directDeposits)
+    readSheet(TABS2.register), readSheet(TABS2.debts), readSheet(TABS2.directDeposits),
+    readSheet(TABS2.scheduledPayments), readSheet(TABS2.recurringIgnore), readSheet(TABS2.history), readSheet(TABS2.meta)
   ]);
-  data.accounts = accounts.map(r => ({ name: r[0], balance: parseFloat(r[1]) || 0, color: r[2] || ACCOUNT_COLORS[0], threshold: parseFloat(r[3]) || 0 }));
+  data.accounts = accounts.map(r => ({ name: r[0], balance: parseFloat(r[1]) || 0, color: r[2] || ACCOUNT_COLORS[0] }));
   data.categories = categories.map(r => ({ name: r[0], planned: parseFloat(r[1]) || 0 }));
-  data.recurring = recurring.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, day: parseInt(r[2]) || 1, account: r[3] || '', category: r[4] || '', freq: r[5] || 'Monthly' }));
+  data.recurring = recurring.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, day: parseInt(r[2]) || 1, account: r[3] || '', category: r[4] || '', freq: r[5] || 'Monthly', paidMonth: r[6] || '' }));
   data.transactions = register.map(r => ({ date: r[0], type: r[1], desc: r[2], account: r[3], category: r[4] || '', amount: parseFloat(r[5]) || 0 }));
   data.debts = debts.map(r => ({ name: r[0], balance: parseFloat(r[1]) || 0, min: parseFloat(r[2]) || 0, limit: parseFloat(r[3]) || 0, day: parseInt(r[4]) || 1, status: r[5] || '' }));
   data.directDeposits = directDeposits.map(r => ({ name: r[0], amount: parseFloat(r[1]) || 0, account: r[2] || '', freq: r[3] || 'Biweekly', nextDate: r[4] || '' }));
+  data.scheduledPayments = scheduled.map(r => ({ debtName: r[0], amount: parseFloat(r[1]) || 0, account: r[2] || '', date: r[3] || '' }));
+  data.recurringIgnore = ignore.map(r => r[0]).filter(Boolean);
+  data.history = history.map(r => { let breakdown = {}; try { breakdown = JSON.parse(r[4] || '{}'); } catch (e) {} return { month: r[0], income: parseFloat(r[1]) || 0, charges: parseFloat(r[2]) || 0, surplus: parseFloat(r[3]) || 0, breakdown }; });
+  const setupRow = meta.find(r => r[0] === 'SetupDate');
+  data.setupDate = setupRow ? setupRow[1] : null;
 }
 
 /* THEME */
@@ -1051,7 +1151,7 @@ function addSetupAccount() {
   const name = document.getElementById('setup-acc-name').value.trim();
   const balance = parseFloat(document.getElementById('setup-acc-balance').value) || 0;
   if (!name) { toast('Enter an account name first.', 'error'); return; }
-  ui.setupPendingAccounts.push({ name, balance, color: ui.setupSelectedColor, threshold: 0 });
+  ui.setupPendingAccounts.push({ name, balance, color: ui.setupSelectedColor });
   document.getElementById('setup-acc-name').value = '';
   document.getElementById('setup-acc-balance').value = '';
   renderSetupAccountList();
@@ -1085,7 +1185,11 @@ function finishSetup() {
   data.accounts = ui.setupPendingAccounts.slice();
   document.getElementById('setup-modal').classList.remove('open');
   if (mode === 'google') {
-    data.accounts.forEach(a => appendRow(TABS2.accounts, [a.name, a.balance, a.color, a.threshold || 0]));
+    data.accounts.forEach(a => appendRow(TABS2.accounts, [a.name, a.balance, a.color]));
+    if (!data.setupDate) {
+      data.setupDate = new Date().toISOString().slice(0, 10);
+      appendRow(TABS2.meta, ['SetupDate', data.setupDate]);
+    }
   }
   renderAll();
   toast('You are all set up.', 'success');
@@ -1101,6 +1205,7 @@ function showScreen(name) {
 
 /* RENDER ALL */
 function renderAll() {
+  checkScheduledPayments();
   populateAccountSelects();
   populateCategorySelects();
   renderBudget();
@@ -1113,7 +1218,7 @@ function renderAll() {
 
 function populateAccountSelects() {
   const opts = data.accounts.map(a => `<option>${a.name}</option>`).join('');
-  ['rec-account', 'txn-account', 'txn-to-account', 'dd-account'].forEach(id => {
+  ['rec-account', 'txn-account', 'txn-to-account', 'dd-account', 'pay-account'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = opts || '<option value="">No accounts yet</option>';
   });
@@ -1232,6 +1337,18 @@ function renderBudget() {
       <div class="list-row-amount">${fmt(r.amount)}</div>
     </div>
   `).join('') : '<div class="empty-state">No recurring charges yet.</div>';
+
+  const historyBody = document.getElementById('history-list-body');
+  const recentHistory = data.history.slice().sort((a, b) => b.month.localeCompare(a.month)).slice(0, 6);
+  historyBody.innerHTML = recentHistory.length ? recentHistory.map(h => `
+    <div class="list-row">
+      <div class="list-row-left">
+        <div class="list-row-name">${h.month}</div>
+        <div class="list-row-date">Income ${fmt(h.income)}, spent ${fmt(h.charges)}</div>
+      </div>
+      <div class="list-row-amount ${h.surplus >= 0 ? 'green' : 'red'}">${fmt(h.surplus)}</div>
+    </div>
+  `).join('') : '<div class="empty-state">History starts building up after your first full month.</div>';
 }
 
 function daySuffix(d) {
@@ -1318,16 +1435,18 @@ function removeCategory(i) {
 
 /* RECURRING CHARGES */
 function saveRecurring() {
+  const existing = ui.editingRecurring !== null ? data.recurring[ui.editingRecurring] : null;
   const item = {
     name: document.getElementById('rec-name').value.trim(),
     amount: parseFloat(document.getElementById('rec-amount').value) || 0,
     day: parseInt(document.getElementById('rec-day').value) || 1,
     account: document.getElementById('rec-account').value,
     category: document.getElementById('rec-category').value,
-    freq: document.getElementById('rec-freq').value
+    freq: document.getElementById('rec-freq').value,
+    paidMonth: existing ? existing.paidMonth : ''
   };
   if (!item.name) { toast('Enter a name first.', 'error'); return; }
-  const row = [item.name, item.amount, item.day, item.account, item.category, item.freq];
+  const row = [item.name, item.amount, item.day, item.account, item.category, item.freq, item.paidMonth];
   if (ui.editingRecurring !== null) {
     data.recurring[ui.editingRecurring] = item;
     updateRow(TABS2.recurring, ui.editingRecurring, row);
@@ -1379,7 +1498,10 @@ function renderRecurring() {
     tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">No recurring charges yet.</div></td></tr>';
     return;
   }
-  tbody.innerHTML = data.recurring.map((r, i) => `
+  const curMonth = monthKey(new Date());
+  tbody.innerHTML = data.recurring.map((r, i) => {
+    const isPaid = r.paidMonth === curMonth;
+    return `
     <tr>
       <td>${r.name}</td>
       <td class="mono">${fmt(r.amount)}</td>
@@ -1387,13 +1509,15 @@ function renderRecurring() {
       <td>${r.account || '--'}</td>
       <td>${r.category || '<span style="color:var(--muted);">Uncategorized</span>'}</td>
       <td>${r.freq}</td>
-      <td><span class="badge upcoming">Due</span></td>
+      <td>${isPaid ? '<span class="badge paid">Paid</span>' : '<span class="badge upcoming">Due</span>'}</td>
       <td>
+        ${isPaid ? '' : `<button class="chip-btn" onclick="openPayModal('recurring', ${i})">Mark paid</button>`}
         <button class="chip-btn" onclick="editRecurring(${i})">Edit</button>
         <button class="chip-btn" onclick="deleteRecurring(${i})">Delete</button>
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 /* REGISTER */
@@ -1447,7 +1571,7 @@ function adjustBalance(accountName, delta) {
   if (i < 0) return;
   data.accounts[i].balance += delta;
   const a = data.accounts[i];
-  updateRow(TABS2.accounts, i, [a.name, a.balance, a.color, a.threshold || 0]);
+  updateRow(TABS2.accounts, i, [a.name, a.balance, a.color]);
 }
 
 function findRecurringMatches() {
@@ -1467,11 +1591,12 @@ function renderRegister() {
   }
   const counts = findRecurringMatches();
   const alreadyRecurring = new Set(data.recurring.map(r => r.name.toLowerCase()));
+  const ignored = new Set(data.recurringIgnore.map(n => n.toLowerCase()));
   const sorted = data.transactions.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
 
   tbody.innerHTML = sorted.map(t => {
     const idx = data.transactions.indexOf(t);
-    const looksRecurring = t.type === 'expense' && counts[t.desc] >= 2 && !alreadyRecurring.has(t.desc.toLowerCase());
+    const looksRecurring = t.type === 'expense' && counts[t.desc] >= 2 && !alreadyRecurring.has(t.desc.toLowerCase()) && !ignored.has(t.desc.toLowerCase());
     const amountClass = t.type === 'deposit' ? 'green' : (t.type === 'expense' ? 'red' : '');
     const sign = t.type === 'deposit' ? '+' : (t.type === 'expense' ? '-' : '');
     return `
@@ -1482,10 +1607,17 @@ function renderRegister() {
         <td>${t.account}</td>
         <td>${t.category || '<span style="color:var(--muted);">--</span>'}</td>
         <td class="mono list-row-amount ${amountClass}">${sign}${fmt(t.amount)}</td>
-        <td>${looksRecurring ? `<button class="chip-btn" onclick="convertToRecurring(${idx})">Add as charge</button>` : ''}</td>
+        <td>${looksRecurring ? `<button class="chip-btn" onclick="convertToRecurring(${idx})">Add as charge</button><button class="chip-btn" onclick="dismissRecurring('${t.desc.replace(/'/g, "\\'")}')">Not recurring</button>` : ''}</td>
       </tr>
     `;
   }).join('');
+}
+
+function dismissRecurring(desc) {
+  data.recurringIgnore.push(desc);
+  appendRow(TABS2.recurringIgnore, [desc]);
+  renderRegister();
+  toast('Got it, won\'t flag that again.');
 }
 
 function convertToRecurring(idx) {
@@ -1558,26 +1690,151 @@ function renderDebts() {
   const tbody = document.getElementById('debts-tbody');
   if (!data.debts.length) {
     tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">No debts added yet.</div></td></tr>';
-    return;
+  } else {
+    tbody.innerHTML = data.debts.map((d, i) => {
+      const usedPct = d.limit > 0 ? Math.min(100, Math.round((d.balance / d.limit) * 100)) : null;
+      return `
+        <tr>
+          <td>${d.name}</td>
+          <td class="mono">${fmt(d.balance)}</td>
+          <td class="mono">${fmt(d.min)}</td>
+          <td class="mono">${d.limit > 0 ? fmt(d.limit) : '--'}</td>
+          <td>${usedPct !== null ? usedPct + '%' : '--'}</td>
+          <td>${d.day}${daySuffix(d.day)}</td>
+          <td>${d.status || '--'}</td>
+          <td>
+            <button class="chip-btn" onclick="openPayModal('debt-pay', ${i})">Log payment</button>
+            <button class="chip-btn" onclick="openPayModal('debt-schedule', ${i})">Schedule</button>
+            <button class="chip-btn" onclick="editDebt(${i})">Edit</button>
+            <button class="chip-btn" onclick="deleteDebt(${i})">Delete</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
   }
-  tbody.innerHTML = data.debts.map((d, i) => {
-    const usedPct = d.limit > 0 ? Math.min(100, Math.round((d.balance / d.limit) * 100)) : null;
-    return `
+
+  const block = document.getElementById('scheduled-payments-block');
+  const spTbody = document.getElementById('scheduled-payments-tbody');
+  if (data.scheduledPayments.length) {
+    block.style.display = 'block';
+    spTbody.innerHTML = data.scheduledPayments.map(s => `
       <tr>
-        <td>${d.name}</td>
-        <td class="mono">${fmt(d.balance)}</td>
-        <td class="mono">${fmt(d.min)}</td>
-        <td class="mono">${d.limit > 0 ? fmt(d.limit) : '--'}</td>
-        <td>${usedPct !== null ? usedPct + '%' : '--'}</td>
-        <td>${d.day}${daySuffix(d.day)}</td>
-        <td>${d.status || '--'}</td>
-        <td>
-          <button class="chip-btn" onclick="editDebt(${i})">Edit</button>
-          <button class="chip-btn" onclick="deleteDebt(${i})">Delete</button>
-        </td>
+        <td>${s.debtName}</td>
+        <td class="mono">${fmt(s.amount)}</td>
+        <td>${s.account}</td>
+        <td>${s.date}</td>
       </tr>
-    `;
-  }).join('');
+    `).join('');
+  } else {
+    block.style.display = 'none';
+  }
+}
+
+function checkScheduledPayments() {
+  const today = new Date().toISOString().slice(0, 10);
+  let dueIdx = data.scheduledPayments.findIndex(s => s.date <= today);
+  while (dueIdx >= 0) {
+    const s = data.scheduledPayments[dueIdx];
+    applyDebtPayment(s.debtName, s.amount, s.account);
+    data.scheduledPayments.splice(dueIdx, 1);
+    deleteSheetRow(TABS2.scheduledPayments, dueIdx);
+    dueIdx = data.scheduledPayments.findIndex(s => s.date <= today);
+  }
+}
+
+function applyDebtPayment(debtName, amount, account) {
+  const di = data.debts.findIndex(d => d.name === debtName);
+  if (di < 0) return;
+  data.debts[di].balance = Math.max(0, data.debts[di].balance - amount);
+  const d = data.debts[di];
+  updateRow(TABS2.debts, di, [d.name, d.balance, d.min, d.limit, d.day, d.status]);
+  adjustBalance(account, -amount);
+  const t = { date: new Date().toISOString().slice(0,10), type: 'expense', desc: debtName + ' payment', amount, account, category: 'Debt' };
+  data.transactions.push(t);
+  appendRow(TABS2.register, [t.date, t.type, t.desc, t.account, t.category, t.amount]);
+}
+
+/* PAY MODAL */
+function openPayModal(kind, index) {
+  payModalCtx = { kind, index };
+  const title = document.getElementById('pay-modal-title');
+  const sub = document.getElementById('pay-modal-sub');
+  const amountGroup = document.getElementById('pay-amount-group');
+  const dateGroup = document.getElementById('pay-date-group');
+  const amountInput = document.getElementById('pay-amount');
+  const accountSelect = document.getElementById('pay-account');
+  const dateInput = document.getElementById('pay-date');
+
+  if (kind === 'recurring') {
+    const r = data.recurring[index];
+    title.textContent = 'Mark as paid';
+    sub.textContent = 'Which account did this come from?';
+    amountGroup.style.display = 'flex';
+    dateGroup.style.display = 'none';
+    amountInput.value = r.amount;
+    accountSelect.value = r.account || '';
+  } else if (kind === 'debt-pay') {
+    const d = data.debts[index];
+    title.textContent = 'Log a payment';
+    sub.textContent = 'Enter the payment amount and which account it comes from.';
+    amountGroup.style.display = 'flex';
+    dateGroup.style.display = 'none';
+    amountInput.value = d.min || '';
+    accountSelect.value = '';
+  } else if (kind === 'debt-schedule') {
+    const d = data.debts[index];
+    title.textContent = 'Schedule a payment';
+    sub.textContent = 'This applies automatically on the date you choose.';
+    amountGroup.style.display = 'flex';
+    dateGroup.style.display = 'flex';
+    amountInput.value = d.min || '';
+    accountSelect.value = '';
+    dateInput.value = new Date().toISOString().slice(0, 10);
+  }
+  document.getElementById('pay-modal').classList.add('open');
+}
+
+function closePayModal() {
+  document.getElementById('pay-modal').classList.remove('open');
+  payModalCtx = null;
+}
+
+function submitPayModal() {
+  if (!payModalCtx) return;
+  const account = document.getElementById('pay-account').value;
+  const amount = parseFloat(document.getElementById('pay-amount').value) || 0;
+  if (!account) { toast('Choose an account first.', 'error'); return; }
+  if (!amount) { toast('Enter an amount first.', 'error'); return; }
+
+  if (payModalCtx.kind === 'recurring') {
+    const r = data.recurring[payModalCtx.index];
+    adjustBalance(account, -amount);
+    const t = { date: new Date().toISOString().slice(0,10), type: 'expense', desc: r.name, amount, account, category: r.category };
+    data.transactions.push(t);
+    appendRow(TABS2.register, [t.date, t.type, t.desc, t.account, t.category, t.amount]);
+    r.paidMonth = monthKey(new Date());
+    updateRow(TABS2.recurring, payModalCtx.index, [r.name, r.amount, r.day, r.account, r.category, r.freq, r.paidMonth]);
+    renderRecurring();
+    renderBudget();
+    renderRegister();
+    toast('Marked as paid.', 'success');
+  } else if (payModalCtx.kind === 'debt-pay') {
+    const d = data.debts[payModalCtx.index];
+    applyDebtPayment(d.name, amount, account);
+    renderDebts();
+    renderRegister();
+    renderBudget();
+    toast('Payment logged.', 'success');
+  } else if (payModalCtx.kind === 'debt-schedule') {
+    const d = data.debts[payModalCtx.index];
+    const date = document.getElementById('pay-date').value || new Date().toISOString().slice(0,10);
+    const s = { debtName: d.name, amount, account, date };
+    data.scheduledPayments.push(s);
+    appendRow(TABS2.scheduledPayments, [s.debtName, s.amount, s.account, s.date]);
+    renderDebts();
+    toast('Payment scheduled.', 'success');
+  }
+  closePayModal();
 }
 
 /* SETTINGS (accounts) */
@@ -1596,11 +1853,10 @@ function saveAccount() {
   const item = {
     name: document.getElementById('acc-name').value.trim(),
     balance: parseFloat(document.getElementById('acc-balance').value) || 0,
-    threshold: parseFloat(document.getElementById('acc-threshold').value) || 0,
     color: ui.settingsSelectedColor || ACCOUNT_COLORS[0]
   };
   if (!item.name) { toast('Enter an account name first.', 'error'); return; }
-  const row = [item.name, item.balance, item.color, item.threshold || 0];
+  const row = [item.name, item.balance, item.color];
   if (ui.editingAccount !== null) {
     data.accounts[ui.editingAccount] = item;
     updateRow(TABS2.accounts, ui.editingAccount, row);
@@ -1611,7 +1867,7 @@ function saveAccount() {
     data.accounts.push(item);
     appendRow(TABS2.accounts, row);
   }
-  ['acc-name','acc-balance','acc-threshold'].forEach(id => document.getElementById(id).value = '');
+  ['acc-name','acc-balance'].forEach(id => document.getElementById(id).value = '');
   renderAll();
   toast('Saved.', 'success');
 }
@@ -1620,7 +1876,6 @@ function editAccount(i) {
   const a = data.accounts[i];
   document.getElementById('acc-name').value = a.name;
   document.getElementById('acc-balance').value = a.balance;
-  document.getElementById('acc-threshold').value = a.threshold;
   ui.settingsSelectedColor = a.color;
   renderAccColorRow();
   ui.editingAccount = i;
@@ -1631,7 +1886,7 @@ function editAccount(i) {
 
 function cancelEditAccount() {
   ui.editingAccount = null;
-  ['acc-name','acc-balance','acc-threshold'].forEach(id => document.getElementById(id).value = '');
+  ['acc-name','acc-balance'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('acc-cancel-btn').style.display = 'none';
   document.getElementById('acc-submit-btn').textContent = 'Add account';
 }
@@ -1647,7 +1902,7 @@ function renderSettings() {
   renderAccColorRow();
   const tbody = document.getElementById('settings-accounts-tbody');
   if (!data.accounts.length) {
-    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">No accounts yet.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state">No accounts yet.</div></td></tr>';
     return;
   }
   tbody.innerHTML = data.accounts.map((a, i) => `
@@ -1655,7 +1910,6 @@ function renderSettings() {
       <td>${a.name}</td>
       <td><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${a.color};"></span></td>
       <td class="mono">${fmt(a.balance)}</td>
-      <td class="mono">${a.threshold ? fmt(a.threshold) : '--'}</td>
       <td>
         <button class="chip-btn" onclick="editAccount(${i})">Edit</button>
         <button class="chip-btn" onclick="deleteAccount(${i})">Delete</button>
