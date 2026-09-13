@@ -1,5 +1,23 @@
 # Budget app, release notes
 
+## v3.4.0-beta, category card grid replaces pie chart and progress bars
+
+The pie chart and the progress bar list were both answering "how's my spending by
+category" in overlapping ways, made worse once default categories seeded in at zero.
+Replaced both with a single 4-wide grid of square cards, one per category.
+
+Each card gets a full background wash in that category's color, a percent-to-budget
+badge in the top-right corner, and the budgeted versus actual amounts. A category with
+no budget shows -- in the badge instead of a percent, since there's nothing to measure
+against yet.
+
+Categories with no budget and no spending stay hidden from the grid entirely, so
+seeding twelve default categories doesn't mean seeing twelve empty cards, only ones
+you've actually engaged with show up.
+
+Canvas-based pie drawing is gone along with the color legend it needed, categories are
+distinguished by their card's own wash now instead of a separate key.
+
 ## v3.3.2-beta, default categories restored
 
 v2.5.2 had a fixed set of budget categories (Food, Gas, Groceries, Entertainment,

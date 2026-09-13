@@ -173,6 +173,7 @@ select option { background: var(--surface2); }
   nav { padding: 0 12px; }
   .nav-tab { padding: 12px 14px; font-size: 13px; }
   .form-grid { grid-template-columns: 1fr; }
+  #category-card-grid { grid-template-columns: repeat(2, 1fr) !important; }
 }
 </style>
 </head>
@@ -257,7 +258,7 @@ select option { background: var(--surface2); }
 <!-- APP -->
 <div id="app">
   <header>
-    <div class="header-brand">Budget <span style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v3.3.2-beta</span></div>
+    <div class="header-brand">Budget <span style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v3.4.0-beta</span></div>
     <div style="display:flex;align-items:center;margin-left:auto;">
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">&#9790; Dark</button>
       <div class="header-user" onclick="toggleUserMenu()">
@@ -301,14 +302,6 @@ select option { background: var(--surface2); }
         </div>
       </div>
 
-      <div class="section-title">Spending by category</div>
-      <div class="card" style="margin-bottom:28px;padding:24px;">
-        <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
-          <div id="budget-legend" style="display:flex;flex-direction:column;gap:10px;min-width:170px;flex:1;"></div>
-          <canvas id="budget-pie" width="200" height="200" style="flex-shrink:0;"></canvas>
-        </div>
-      </div>
-
       <div class="section-header-row">
         <div class="section-title" style="margin-bottom:0;">Category budgets</div>
       </div>
@@ -325,7 +318,7 @@ select option { background: var(--surface2); }
         </div>
         <button class="btn btn-secondary btn-sm" onclick="addCategory()">Add category</button>
       </div>
-      <div id="category-progress-list" style="margin-bottom:28px;"></div>
+      <div id="category-card-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;"></div>
 
       <div class="section-title">Upcoming charges</div>
       <div class="upcoming-list">
@@ -1121,7 +1114,6 @@ async function loadAllDataFromSheet() {
 function toggleTheme() {
   const isLight = document.body.classList.toggle('light');
   document.getElementById('theme-btn').innerHTML = isLight ? '&#9728; Light' : '&#9790; Dark';
-  drawPieChart(lastPieLabels, lastPieValues, lastPieColors);
 }
 
 /* SETUP MODAL (first login flow, invoked manually here for demo) */
@@ -1286,7 +1278,13 @@ function spendingByCategory() {
   return spend;
 }
 
-let lastPieLabels = [], lastPieValues = [], lastPieColors = [];
+function hexToRgba(hex, alpha) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 function renderBudget() {
   const chipsEl = document.getElementById('budget-account-chips');
@@ -1312,26 +1310,29 @@ function renderBudget() {
   surplusEl.className = 'card-value ' + (surplus >= 0 ? 'green' : 'red');
 
   const spend = spendingByCategory();
-  const labels = Object.keys(spend);
-  const values = labels.map(l => spend[l]);
-  const colors = labels.map((l, i) => l === 'Uncategorized' ? '#7a84a0' : PIE_COLORS[i % PIE_COLORS.length]);
-  drawPieChart(labels, values, colors);
 
-  const list = document.getElementById('category-progress-list');
-  if (!data.categories.length) {
-    list.innerHTML = '<div class="empty-state">No categories yet. Add one above.</div>';
+  const grid = document.getElementById('category-card-grid');
+  const visible = data.categories.filter((c, i) => c.planned > 0 || (spend[c.name] || 0) > 0);
+  if (!visible.length) {
+    grid.innerHTML = '<div class="empty-state">No categories with a budget or spending yet.</div>';
   } else {
-    list.innerHTML = data.categories.map((c, i) => {
+    grid.innerHTML = visible.map((c) => {
+      const i = data.categories.indexOf(c);
+      const color = PIE_COLORS[i % PIE_COLORS.length];
       const spent = spend[c.name] || 0;
-      const pct = c.planned > 0 ? Math.min(100, (spent / c.planned) * 100) : 0;
-      const over = c.planned > 0 && spent > c.planned;
+      const pct = c.planned > 0 ? Math.round((spent / c.planned) * 100) : null;
+      const badgeColor = pct === null ? 'var(--muted)' : (pct > 100 ? '#f76f6f' : color);
       return `
-        <div class="category-row">
-          <div class="category-row-top">
-            <span class="name"><span class="dot" style="background:${PIE_COLORS[i % PIE_COLORS.length]};"></span>${c.name}</span>
-            <span style="color:var(--muted);">${fmt(spent)} of ${fmt(c.planned)} <button class="chip-btn" onclick="removeCategory(${i})">&times;</button></span>
+        <div style="position:relative;aspect-ratio:1;background:${hexToRgba(color, 0.14)};border:1px solid ${hexToRgba(color, 0.3)};border-radius:12px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;">
+          <div>
+            <div style="position:absolute;top:10px;right:10px;background:${hexToRgba(badgeColor === 'var(--muted)' ? '#7a84a0' : badgeColor, 0.2)};color:${badgeColor};font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">${pct === null ? '--' : pct + '%'}</div>
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;">${c.name}</div>
           </div>
-          <div class="progress-track"><div class="progress-fill" style="width:${pct}%;background:${over ? 'var(--danger)' : 'var(--accent)'};"></div></div>
+          <div>
+            <div class="mono" style="font-size:18px;">${fmt(spent)}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">${c.planned > 0 ? 'of ' + fmt(c.planned) + ' budgeted' : 'no budget set'}</div>
+          </div>
+          <button class="chip-btn" style="position:absolute;bottom:10px;right:10px;" onclick="removeCategory(${i})">&times;</button>
         </div>
       `;
     }).join('');
@@ -1365,63 +1366,6 @@ function renderBudget() {
 function daySuffix(d) {
   if (d >= 11 && d <= 13) return 'th';
   switch (d % 10) { case 1: return 'st'; case 2: return 'nd'; case 3: return 'rd'; default: return 'th'; }
-}
-
-function drawPieChart(labels, values, colors) {
-  lastPieLabels = labels; lastPieValues = values; lastPieColors = colors;
-  const canvas = document.getElementById('budget-pie');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  ctx.clearRect(0, 0, W, H);
-  const total = values.reduce((s, v) => s + v, 0);
-  const legendEl = document.getElementById('budget-legend');
-
-  if (!total) {
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--border') || '#2a2f42';
-    ctx.beginPath();
-    ctx.arc(W/2, H/2, W/2 - 10, 0, Math.PI * 2);
-    ctx.fill();
-    legendEl.innerHTML = '<div class="empty-state" style="padding:8px 0;">No spending yet.</div>';
-    return;
-  }
-
-  let startAngle = -Math.PI / 2;
-  const legend = [];
-  values.forEach((val, i) => {
-    const slice = (val / total) * Math.PI * 2;
-    const color = colors[i];
-    ctx.beginPath();
-    ctx.moveTo(W/2, H/2);
-    ctx.arc(W/2, H/2, W/2 - 10, startAngle, startAngle + slice);
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.fill();
-    legend.push({ label: labels[i], color, pct: Math.round((val / total) * 100), amount: val });
-    startAngle += slice;
-  });
-
-  ctx.beginPath();
-  ctx.arc(W/2, H/2, W/4, 0, Math.PI * 2);
-  const bg = document.body.classList.contains('light') ? '#f4f6fb' : '#181c27';
-  ctx.fillStyle = bg;
-  ctx.fill();
-  ctx.fillStyle = document.body.classList.contains('light') ? '#1a2035' : '#e4e8f0';
-  ctx.font = 'bold 14px Inter, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(fmt(total), W/2, H/2 + 5);
-  ctx.font = '10px Inter, sans-serif';
-  ctx.fillStyle = '#7a84a0';
-  ctx.fillText('this month', W/2, H/2 + 18);
-
-  legend.sort((a, b) => b.amount - a.amount);
-  legendEl.innerHTML = legend.map(l => `
-    <div style="display:flex;align-items:center;gap:8px;font-size:13px;">
-      <span style="width:10px;height:10px;border-radius:2px;background:${l.color};flex-shrink:0;display:inline-block;"></span>
-      <span style="color:var(--text);">${l.label}</span>
-      <span style="color:var(--muted);margin-left:auto;">${fmt(l.amount)} &middot; ${l.pct}%</span>
-    </div>
-  `).join('');
 }
 
 function addCategory() {
