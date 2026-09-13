@@ -1,5 +1,10 @@
 # Budget app, release notes
 
+## v3.3.1-beta, nav styling tweak
+
+Nav text is larger, "Bill Tracking" is back to one line instead of stacked, and thin
+vertical dividers now separate each nav item. No functional changes.
+
 ## v3.3.0-beta, Bill Tracking, running debt balances, history, recurring dismiss
 
 **Bill Tracking replaces the separate Recurring Charges and Debts tabs.** One screen,

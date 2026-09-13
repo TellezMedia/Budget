@@ -67,10 +67,10 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
 .user-menu-item.danger { color: var(--danger); }
 
 nav { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; gap: 0; padding: 0 24px; overflow-x: auto; }
-.nav-tab { padding: 10px 20px; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: color 0.15s, border-color 0.15s; line-height: 1.35; text-align: center; }
+.nav-tab { padding: 14px 22px; font-size: 15px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; border-right: 1px solid var(--border); white-space: nowrap; transition: color 0.15s, border-color 0.15s; line-height: 1.35; text-align: center; }
+.nav-tab:last-child { border-right: none; }
 .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 .nav-tab:hover { color: var(--text); }
-.nav-tab .stacked { display: block; }
 
 main { padding: 28px 24px; max-width: 960px; margin: 0 auto; width: 100%; }
 .screen { display: none; }
@@ -171,7 +171,7 @@ select option { background: var(--surface2); }
   main { padding: 20px 16px; }
   header { padding: 0 16px; }
   nav { padding: 0 12px; }
-  .nav-tab { padding: 10px 12px; font-size: 12px; }
+  .nav-tab { padding: 12px 14px; font-size: 13px; }
   .form-grid { grid-template-columns: 1fr; }
 }
 </style>
@@ -257,7 +257,7 @@ select option { background: var(--surface2); }
 <!-- APP -->
 <div id="app">
   <header>
-    <div class="header-brand">Budget <span style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v3.3.0-beta</span></div>
+    <div class="header-brand">Budget <span style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v3.3.1-beta</span></div>
     <div style="display:flex;align-items:center;margin-left:auto;">
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">&#9790; Dark</button>
       <div class="header-user" onclick="toggleUserMenu()">
@@ -274,7 +274,7 @@ select option { background: var(--surface2); }
 
   <nav>
     <div class="nav-tab active" data-screen="budget" onclick="showScreen('budget')">Budget</div>
-    <div class="nav-tab" data-screen="recurring" onclick="showScreen('recurring')"><span class="stacked">Bill</span><span class="stacked">Tracking</span></div>
+    <div class="nav-tab" data-screen="recurring" onclick="showScreen('recurring')">Bill Tracking</div>
     <div class="nav-tab" data-screen="register" onclick="showScreen('register')">Register</div>
     <div class="nav-tab" data-screen="settings" onclick="showScreen('settings')">Settings</div>
   </nav>
