@@ -234,7 +234,7 @@ select option { background: var(--surface2); }
 <!-- APP -->
 <div id="app">
   <header>
-    <div class="header-brand">Budget <span style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v3.0.0-beta</span></div>
+    <div class="header-brand">Budget <span style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v3.1.0-beta</span></div>
     <div style="display:flex;align-items:center;margin-left:auto;">
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">&#9790; Dark</button>
       <div class="header-user" onclick="toggleUserMenu()">
@@ -486,6 +486,46 @@ select option { background: var(--surface2); }
         </table>
       </div>
 
+      <div class="section-title">Direct deposit</div>
+      <div class="form-card">
+        <div class="form-title" id="dd-form-title">Add a direct deposit</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="dd-name" placeholder="Paycheck..." />
+          </div>
+          <div class="form-group">
+            <label>Amount</label>
+            <input type="number" id="dd-amount" placeholder="0.00" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>Account</label>
+            <select id="dd-account"></select>
+          </div>
+          <div class="form-group">
+            <label>Frequency</label>
+            <select id="dd-freq">
+              <option>Weekly</option>
+              <option selected>Biweekly</option>
+              <option>Twice a month</option>
+              <option>Monthly</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Next pay date</label>
+            <input type="date" id="dd-next-date" />
+          </div>
+        </div>
+        <button class="btn btn-primary" id="dd-submit-btn" onclick="saveDirectDeposit()">Save direct deposit</button>
+        <button class="btn btn-secondary" id="dd-cancel-btn" onclick="cancelEditDirectDeposit()" style="display:none;">Cancel edit</button>
+      </div>
+      <div class="data-table">
+        <table>
+          <thead><tr><th>Name</th><th>Amount</th><th>Account</th><th>Frequency</th><th>Next pay date</th><th>Monthly equivalent</th><th></th></tr></thead>
+          <tbody id="dd-tbody"><tr><td colspan="7"><div class="empty-state">No direct deposits set up yet.</div></td></tr></tbody>
+        </table>
+      </div>
+
       <div class="section-title">Bank sync</div>
       <div class="form-card" style="display:flex;align-items:center;justify-content:space-between;">
         <div>
@@ -522,7 +562,8 @@ let data = {
   categories: [],
   recurring: [],
   transactions: [],
-  debts: []
+  debts: [],
+  directDeposits: []
 };
 
 let ui = {
@@ -567,6 +608,9 @@ function loadSampleData() {
     { date: daysAgo(20), type: 'expense', desc: 'Chewy', amount: 76.96, account: 'Chime checking', category: 'Personal' },
     { date: daysAgo(50), type: 'expense', desc: 'Chewy', amount: 76.96, account: 'Chime checking', category: 'Personal' }
   ];
+  data.directDeposits = [
+    { name: 'Paycheck', amount: 2350, account: 'PNC checking', freq: 'Biweekly', nextDate: daysAhead(6) }
+  ];
   data.debts = [
     { name: 'CreditOne Blue', balance: 295.77, min: 30, limit: 300, day: 2, status: 'unpaid for August' },
     { name: 'Blaze', balance: 263.62, min: 30, limit: 350, day: 16, status: '' },
@@ -580,6 +624,12 @@ function loadSampleData() {
 function daysAgo(n) {
   const d = new Date();
   d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
+function daysAhead(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
   return d.toISOString().slice(0, 10);
 }
 
@@ -604,6 +654,7 @@ function continueWithGoogle() {
   data.recurring = [];
   data.transactions = [];
   data.debts = [];
+  data.directDeposits = [];
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('settings-account-mode').textContent = 'Not connected';
@@ -730,11 +781,12 @@ function renderAll() {
   renderRegister();
   renderDebts();
   renderSettings();
+  renderDirectDeposits();
 }
 
 function populateAccountSelects() {
   const opts = data.accounts.map(a => `<option>${a.name}</option>`).join('');
-  ['rec-account', 'txn-account', 'txn-to-account'].forEach(id => {
+  ['rec-account', 'txn-account', 'txn-to-account', 'dd-account'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = opts || '<option value="">No accounts yet</option>';
   });
@@ -761,11 +813,15 @@ function normalizedMonthly(item) {
   return item.amount;
 }
 
+function normalizedIncomeMonthly(item) {
+  if (item.freq === 'Weekly') return item.amount * 4.33;
+  if (item.freq === 'Biweekly') return item.amount * 2.17;
+  if (item.freq === 'Twice a month') return item.amount * 2;
+  return item.amount;
+}
+
 function monthIncome() {
-  const now = new Date();
-  return data.transactions
-    .filter(t => t.type === 'deposit' && new Date(t.date).getMonth() === now.getMonth() && new Date(t.date).getFullYear() === now.getFullYear())
-    .reduce((s, t) => s + t.amount, 0);
+  return data.directDeposits.reduce((s, d) => s + normalizedIncomeMonthly(d), 0);
 }
 
 function monthChargesTotal() {
@@ -1242,6 +1298,80 @@ function renderSettings() {
       <td>
         <button class="chip-btn" onclick="editAccount(${i})">Edit</button>
         <button class="chip-btn" onclick="deleteAccount(${i})">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+/* DIRECT DEPOSIT */
+function saveDirectDeposit() {
+  const item = {
+    name: document.getElementById('dd-name').value.trim(),
+    amount: parseFloat(document.getElementById('dd-amount').value) || 0,
+    account: document.getElementById('dd-account').value,
+    freq: document.getElementById('dd-freq').value,
+    nextDate: document.getElementById('dd-next-date').value
+  };
+  if (!item.name) { toast('Enter a name first.', 'error'); return; }
+  if (ui.editingDirectDeposit !== null && ui.editingDirectDeposit !== undefined) {
+    data.directDeposits[ui.editingDirectDeposit] = item;
+    ui.editingDirectDeposit = null;
+    document.getElementById('dd-cancel-btn').style.display = 'none';
+    document.getElementById('dd-form-title').textContent = 'Add a direct deposit';
+  } else {
+    data.directDeposits.push(item);
+  }
+  ['dd-name','dd-amount','dd-next-date'].forEach(id => document.getElementById(id).value = '');
+  renderDirectDeposits();
+  renderBudget();
+  toast('Saved.', 'success');
+}
+
+function editDirectDeposit(i) {
+  const d = data.directDeposits[i];
+  document.getElementById('dd-name').value = d.name;
+  document.getElementById('dd-amount').value = d.amount;
+  document.getElementById('dd-account').value = d.account;
+  document.getElementById('dd-freq').value = d.freq;
+  document.getElementById('dd-next-date').value = d.nextDate || '';
+  ui.editingDirectDeposit = i;
+  document.getElementById('dd-cancel-btn').style.display = 'inline-flex';
+  document.getElementById('dd-form-title').textContent = 'Edit direct deposit';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cancelEditDirectDeposit() {
+  ui.editingDirectDeposit = null;
+  ['dd-name','dd-amount','dd-next-date'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('dd-cancel-btn').style.display = 'none';
+  document.getElementById('dd-form-title').textContent = 'Add a direct deposit';
+}
+
+function deleteDirectDeposit(i) {
+  if (!confirm('Delete this direct deposit?')) return;
+  data.directDeposits.splice(i, 1);
+  renderDirectDeposits();
+  renderBudget();
+}
+
+function renderDirectDeposits() {
+  const tbody = document.getElementById('dd-tbody');
+  if (!tbody) return;
+  if (!data.directDeposits.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">No direct deposits set up yet.</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.directDeposits.map((d, i) => `
+    <tr>
+      <td>${d.name}</td>
+      <td class="mono">${fmt(d.amount)}</td>
+      <td>${d.account || '--'}</td>
+      <td>${d.freq}</td>
+      <td>${d.nextDate || '--'}</td>
+      <td class="mono">${fmt(normalizedIncomeMonthly(d))}</td>
+      <td>
+        <button class="chip-btn" onclick="editDirectDeposit(${i})">Edit</button>
+        <button class="chip-btn" onclick="deleteDirectDeposit(${i})">Delete</button>
       </td>
     </tr>
   `).join('');

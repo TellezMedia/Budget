@@ -1,5 +1,25 @@
 # Budget app, release notes
 
+## v3.1.0-beta, direct deposit
+
+Added a Direct deposit section to Settings, under Accounts. This is where regular
+payroll lives now: name, amount, paying account, frequency (Weekly, Biweekly, Twice a
+month, Monthly), and a next pay date field for cycles that aren't tied to a calendar
+day, like every fourteen days.
+
+Budget's Income this month now calculates from these entries instead of summing manual
+deposit transactions. A biweekly $2,350 paycheck normalizes to roughly $5,096 a month,
+the same normalization approach Recurring Charges already used for weekly and annual
+items.
+
+Manual deposits in Register are unchanged, they still log to transaction history and
+adjust account balances, they just no longer drive the Income number. That's meant for
+one-off money in, like a bonus or a reimbursement, without it inflating your monthly
+surplus.
+
+No changes to the Register transaction type dropdown or its plus and minus sign
+display, confirmed that's already working as expected.
+
 ## v3.0.0-beta, phase 1 shell redesign
 
 This is a frontend-only redesign of the app shell. It runs entirely on sample data or on
@@ -59,7 +79,10 @@ Reconnect the Plaid Worker for PNC and Chime, using the same recurring detection
 that manual entries use in Register. Decide whether the day by day cash flow calendar
 comes back as a secondary Budget view.
 
-### Suggested commit message
+### Suggested commit messages
 
 `Redesign app shell as v3.0.0-beta: budget-first nav, recurring detection in
 register, debts tracking, first-login setup modal (sample data, no backend yet)`
+
+`Add direct deposit section to settings as v3.1.0-beta: recurring payroll now drives
+the budget income calculation instead of manual deposits`
