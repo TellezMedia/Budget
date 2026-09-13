@@ -1,5 +1,20 @@
 # Budget app, release notes
 
+## v3.3.2-beta, default categories restored
+
+v2.5.2 had a fixed set of budget categories (Food, Gas, Groceries, Entertainment,
+Shopping, Health, Utilities, Subscriptions, Dining Out, Personal Care, Auto, Other).
+That list didn't carry over when Budget was rebuilt for this shell, categories became
+fully free-form with nothing pre-filled, which meant a fresh sign-in started with an
+empty dropdown everywhere a category is picked. That was a regression, not an
+intended change.
+
+Fixed: the same default list now seeds automatically the first time you set up, and
+also retroactively for any account that's already signed in with zero categories, so
+existing users pick it up on their next load too. Since categories here are editable
+entries rather than a locked list, you can still rename, delete, or add more on top,
+"Other" is just one of the defaults now rather than a special fallback.
+
 ## v3.3.1-beta, nav styling tweak
 
 Nav text is larger, "Bill Tracking" is back to one line instead of stacked, and thin

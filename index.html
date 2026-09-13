@@ -257,7 +257,7 @@ select option { background: var(--surface2); }
 <!-- APP -->
 <div id="app">
   <header>
-    <div class="header-brand">Budget <span style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v3.3.1-beta</span></div>
+    <div class="header-brand">Budget <span style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;">v3.3.2-beta</span></div>
     <div style="display:flex;align-items:center;margin-left:auto;">
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">&#9790; Dark</button>
       <div class="header-user" onclick="toggleUserMenu()">
@@ -824,6 +824,7 @@ async function onSignedIn() {
     await flushQueue();
     await loadAllDataFromSheet();
     await checkMonthRollover();
+    if (!data.categories.length) seedDefaultCategories();
   } catch (e) {
     toast('Could not reach your Sheet. Check your connection and try again.', 'error');
   }
@@ -1181,6 +1182,15 @@ function setupGoToStep2() {
   document.getElementById('step-dot-2').classList.add('active');
 }
 
+const DEFAULT_CATEGORIES = ['Food','Gas','Groceries','Entertainment','Shopping','Health','Utilities','Subscriptions','Dining Out','Personal Care','Auto','Other'];
+
+function seedDefaultCategories() {
+  data.categories = DEFAULT_CATEGORIES.map(name => ({ name, planned: 0 }));
+  if (mode === 'google') {
+    data.categories.forEach(c => appendRow(TABS2.categories, [c.name, c.planned]));
+  }
+}
+
 function finishSetup() {
   data.accounts = ui.setupPendingAccounts.slice();
   document.getElementById('setup-modal').classList.remove('open');
@@ -1191,6 +1201,7 @@ function finishSetup() {
       appendRow(TABS2.meta, ['SetupDate', data.setupDate]);
     }
   }
+  if (!data.categories.length) seedDefaultCategories();
   renderAll();
   toast('You are all set up.', 'success');
 }
